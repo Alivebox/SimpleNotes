@@ -1,0 +1,1 @@
+/*928b97d0c8e907adf1527d065b46e8f33ef88067*/Ext.define("FrameworkEvents",{statics:{APP_INIT_COMPLETE:"appInitComplete"}});

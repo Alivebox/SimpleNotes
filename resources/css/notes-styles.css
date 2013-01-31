@@ -1,0 +1,241 @@
+/** NOTES LIST - START */
+
+.notesListEmptyText {
+	padding: 20px;
+}
+
+.x-list .x-list-disclosure {
+	position: absolute;
+	bottom: 0.7em !important;
+}
+
+.list-item-title{
+    width:100%;
+    font-size:100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right:25px;
+    color: #545454;
+}
+
+.list-item-narrative{
+	color:#545454;
+    width:100%;
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right:25px;
+}
+
+.x-item-selected .list-item-narrative {
+    color:#545454 !important;
+}
+
+.x-item-selected .list-item-title{
+    color:#ffffff;
+}
+
+.x-item-selected .list-item-narrative{
+    color:#ffffff;
+}
+
+/**Toolbar main container - Start*/
+.notescontainer .x-toolbar-dark{
+    background-image: -webkit-linear-gradient(top, #6c6c84,#6c6c84 3%,#52525f);
+
+}
+
+.notesform .x-toolbar-dark{
+    background-image: -webkit-linear-gradient(top, #6c6c84,#6c6c84 3%,#52525f);
+}
+
+.notesform .navtoolbar.x-toolbar-dark{
+    background-image: -webkit-linear-gradient(top, #FFFFFF,#FFFFFF 3%,#FFFFFF);
+    border: 1px solid #FFFFFF;
+    border-top-color: #FFFFFF;
+    color: #FFFFFF;
+}
+/**Toolbar main container - End*/
+
+/**Buttons Toolbar main container - Start*/
+.notescontainer .x-button {
+    background-image: -webkit-linear-gradient(top, #F4F4F4,#F4F4F4 3%,#DBDBDB);
+    border: 1px solid #6c6c84;
+    border-top-color: #52525f;
+    color: #545454;
+    height: ;
+}
+
+.notescontainer .x-button.x-button-pressing{
+    background-image: -webkit-linear-gradient(top, #babac1,#babac1 3%,#a4a4ab);
+    border: 1px solid #6c6c84;
+    border-top-color: #52525f;
+    color: #545454;
+}
+
+.notescontainer .x-button-icon.add, .x-button .x-button-icon.x-icon-mask.add{
+    background-image: url('../images/add_up.png');
+    -webkit-background-size: 100% 100%;
+    -khtml-background-size: 100% 100%;
+    -o-background-size: 100% 100%;
+    background-size: 100% 100%;
+}
+
+/**Buttons Toolbar main container - End*/
+
+
+/**Buttons Toolbar form container - Start*/
+.titletoolbar .x-button{
+    background-image: -webkit-linear-gradient(top, #F4F4F4,#F4F4F4 3%,#DBDBDB);
+    border: 1px solid #6c6c84;
+    border-top-color: #52525f;
+    color: #545454;
+}
+
+.titletoolbar .x-button.x-button-pressing{
+    background-image: -webkit-linear-gradient(top, #babac1,#babac1 3%,#a4a4ab);
+    border: 1px solid #6c6c84;
+    border-top-color: #52525f;
+    color: #545454;
+}
+
+/**Buttons Toolbar form container - End*/
+
+/** List header - start */
+
+.x-list-normal .x-list-header-wrap .x-item-header, .x-list-normal .x-list-header {
+    background-image: -webkit-linear-gradient(top, #6cDAFF,#6cDAFF 3%,#3ACEFF);
+    border: 1px solid #3ACEFF;
+    border-top-color: #6cDAFF;
+    color: #FFFFFF;
+    text-align: right;
+}
+
+.dateContainer{
+    background-image: -webkit-linear-gradient(top, #6cDAFF,#6cDAFF 3%,#3ACEFF);
+    border: 1px solid #3ACEFF;
+    border-top-color: #6cDAFF;
+    color: #FFFFFF;
+    text-align: right;
+    padding-right: 10px;
+    font-weight: bold;
+    padding-top: 3px;
+}
+
+/** List header - end */
+
+/** List notes start */
+
+.notescontainer .x-list{
+    background-color: #FFFFFF;
+}
+
+.notescontainer .x-list-item-body {
+    background-color: transparent;
+}
+
+.list-item-icon{
+    float: right;
+    padding-bottom: 10px;
+}
+
+.deletenote{
+    background-image: url('../images/delete_up.png');
+    -webkit-background-size: 100% 100%;
+    -khtml-background-size: 100% 100%;
+    -o-background-size: 100% 100%;
+    background-size: 100% 100%;
+}
+
+.nextbutton{
+    background-image: url('../images/next_up.png');
+    -webkit-background-size: 100% 100%;
+    -khtml-background-size: 100% 100%;
+    -o-background-size: 100% 100%;
+    background-size: 100% 100%;
+}
+
+.prevbutton{
+    background-image: url('../images/preview_up.png');
+    -webkit-background-size: 100% 100%;
+    -khtml-background-size: 100% 100%;
+    -o-background-size: 100% 100%;
+    background-size: 100% 100%;
+}
+
+.notesform{
+    background-color: #FFFFFF;
+}
+
+.x-list .x-list-item.x-item-selected .x-dock-horizontal {
+    background-color: #BBF1FE !important;
+    background-image: none;
+    border: 1px solid #6cDAFF;
+    border-top-color: #3ACEFF;
+    color: #545454;
+    text-shadow: none;
+}
+
+.x-list-normal .x-list-item .x-dock-horizontal {
+    border: 1px solid #6cDAFF;
+}
+
+.x-list-normal .x-list-item.x-list-footer-wrap .x-dock-horizontal {
+    border-bottom: 2px solid #6cDAFF;
+}
+
+.x-form .x-scroll-container {
+    background-color: #FFFFFF;
+}
+
+.notesform .navtoolbar.x-toolbar-dark .x-button{
+    background-color: transparent;
+    background-image: none;
+    border: none;
+}
+
+.x-button.x-item-disabled .x-button-icon {
+    opacity: 0.3;
+}
+
+.notescontainer .x-button {
+    height: 55px;
+    width: 65px;
+    font-weight: bold;
+}
+
+.titletoolbar .x-button {
+    height: 50px;
+    width: 80px;
+    font-weight: bold;
+}
+
+.titletoolbar .x-button.add {
+    height: 55px;
+    width: 65px;
+    font-weight: bold;
+}
+
+.seachfield{
+    padding-right: 15px;
+}
+
+/*.notescontainer .x-list-item-inner-pressed{*/
+    /*background-color: #BBF1FE !important;*/
+/*}*/
+
+/*.notescontainer .x-list-item.x-item-selected{*/
+    /*background-color: #BBF1FE !important;*/
+/*}*/
+
+/** Navigation buttons - start*/
+
+/*.x-button-icon.trash, .x-button .x-button-icon.x-icon-mask.trash {*/
+    /*-webkit-mask-image: inline-image('../images/delete_up.png');*/
+/*}*/
+
+/** Navigation buttons - end*/
+
+/** NOTES LIST - END */
