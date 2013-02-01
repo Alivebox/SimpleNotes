@@ -93,6 +93,8 @@ Ext.define('Notes.controller.NotesFormController', {
     },
     
     onBackToHome: function(){
+        this.getSaveButton().setHidden(false);
+        this.getNewNoteButton().setHidden(true);
     	this.activateNotesList();
         this.setNavigationToolbarVisible(true);
     },
