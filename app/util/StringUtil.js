@@ -20,7 +20,9 @@ Ext.define('Notes.util.StringUtil', {
                 var lines = argText.split('\n');
                 tmpTitle = lines[0];
             }
-
+            if(tmpTitle.length > 10){
+                tmpTitle = tmpTitle.substring(0,7)+'...';
+            }
             return tmpTitle;
         }
     }

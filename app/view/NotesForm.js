@@ -21,6 +21,7 @@ Ext.define("Notes.view.NotesForm", {
             tmpTextArea,
         	tmpBottomBar
         ]);
+
     },
 
     createDateToolbar: function(){
@@ -33,10 +34,10 @@ Ext.define("Notes.view.NotesForm", {
             docked: 'top',
             items: [
                 {
-                    xtype: 'spacer'
-                },{
                     xtype: 'label',
                     html: Ext.Date.format(new Date(), 'F j Y')
+                },{
+                    xtype: 'spacer'
                 }
             ]
         };
@@ -70,15 +71,22 @@ Ext.define("Notes.view.NotesForm", {
             handler: this.onNewNoteClick
         };
 
+        var tmpNoteTitle={
+            xtype: 'label',
+            name: 'titleNote',
+            html: 'New Note',
+            cls: 'noteTitleLabel'
+        };
+
         var tmpTopToolbar = {
             xtype: "toolbar",
             docked: "top",
             height: 80,
-            title: "New Note",
-            name: 'titleNote',
             cls: 'titletoolbar',
             items: [
                 tmpBackButton,
+                { xtype: "spacer" },
+                tmpNoteTitle,
                 { xtype: "spacer" },
                 tmpSaveButton,
                 tmpNewNote
@@ -143,15 +151,29 @@ Ext.define("Notes.view.NotesForm", {
         var tmpNoteTextField = {
             xtype: 'textareafield',
             name: 'text',
-            docked: 'top',
             clearIcon: false,
-            flex: 1,
+            maxRows: 4,
             listeners: {
                 scope: this,
-                keyup: this.onChangeText
+                keyup: this.onChangeText,
+                change: this.onchangeTextNote,
+                painted: this.onPaintedText
             }
         };
-    	return tmpNoteTextField;
+
+        var tmpContainer={
+            xtype:'container',
+            docked: 'top',
+            width: '100%',
+            height: '77%',
+            scrollable: true,
+            centered: true,
+            items: [
+                tmpNoteTextField
+            ]
+        };
+
+    	return tmpContainer;
     },
 
     onSaveNote: function(){
@@ -180,6 +202,14 @@ Ext.define("Notes.view.NotesForm", {
 
     onNewNoteClick: function(){
         this.fireEvent('createNewNote');
+    },
+
+    onchangeTextNote: function(argTextAreaField,argNewValue,argOldValue,eOpts ){
+        this.fireEvent('changeTextNote');
+    },
+
+    onPaintedText: function(argTextAreaField,eOpts){
+        this.fireEvent('paintedTextNote');
     }
     
 });

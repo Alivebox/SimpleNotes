@@ -65,7 +65,6 @@
     border: 1px solid #6c6c84;
     border-top-color: #52525f;
     color: #545454;
-    height: ;
 }
 
 .notescontainer .x-button.x-button-pressing{
@@ -110,7 +109,7 @@
     border: 1px solid #3ACEFF;
     border-top-color: #6cDAFF;
     color: #FFFFFF;
-    text-align: right;
+    text-align: left;
 }
 
 .dateContainer{
@@ -118,8 +117,7 @@
     border: 1px solid #3ACEFF;
     border-top-color: #6cDAFF;
     color: #FFFFFF;
-    text-align: right;
-    padding-right: 10px;
+    padding-left: 16px;
     font-weight: bold;
     padding-top: 3px;
 }
@@ -222,20 +220,12 @@
     padding-right: 15px;
 }
 
-/*.notescontainer .x-list-item-inner-pressed{*/
-    /*background-color: #BBF1FE !important;*/
-/*}*/
-
-/*.notescontainer .x-list-item.x-item-selected{*/
-    /*background-color: #BBF1FE !important;*/
-/*}*/
-
-/** Navigation buttons - start*/
-
-/*.x-button-icon.trash, .x-button .x-button-icon.x-icon-mask.trash {*/
-    /*-webkit-mask-image: inline-image('../images/delete_up.png');*/
-/*}*/
-
+.noteTitleLabel{
+    left: 120;
+    right:120;
+    top: 30;
+    height: 25px;
+}
 /** Navigation buttons - end*/
 
 /** NOTES LIST - END */

@@ -6,7 +6,7 @@ Ext.define('Notes.controller.NotesContainerController', {
 	    refs: {
 	    	notesContainer: 'notescontainer',
             notesForm: 'notesform',
-            notesTitleToolbar: 'notesform toolbar[name=titleNote]',
+            notesTitleToolbar: 'notesform label[name=titleNote]',
             mainTitleToolbar: 'notescontainer toolbar[name=mainToolbar]',
             navigationToolbar: 'notesform toolbar[name=navToolbar]',
             notesList: 'notescontainer list[name=notesList]',
@@ -78,7 +78,7 @@ Ext.define('Notes.controller.NotesContainerController', {
     },
 
     changeToolbarTitle: function(argTitle){
-        this.getNotesTitleToolbar().setTitle(Notes.util.StringUtil.getTitleFromText(argTitle));
+        this.getNotesTitleToolbar().setHtml(Notes.util.StringUtil.getTitleFromText(argTitle));
     },
 
     onRefreshList: function(argList){

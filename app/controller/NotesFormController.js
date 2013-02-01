@@ -6,14 +6,15 @@ Ext.define('Notes.controller.NotesFormController', {
 	    refs: {
 	    	notesForm: 'notesform',
 	    	notesContainer: 'notescontainer',
-            notesTitleToolbar: 'notesform toolbar[name=titleNote]',
+            notesTitleToolbar: 'notesform label[name=titleNote]',
             navigationToolbar: 'notesform toolbar[name=navToolbar]',
             prevButton: 'notesform button[name=previousButton]',
             nextButton: 'notesform button[name=nextButton]',
             saveButton: 'notesform button[name=savebutton]',
             newNoteButton: 'notesform button[name=newNoteButton]',
             mainTitleToolbar: 'notescontainer toolbar[name=mainToolbar]',
-            searchToolbar: 'notescontainer toolbar[name=searchToolbar]'
+            searchToolbar: 'notescontainer toolbar[name=searchToolbar]',
+            textNote: 'notesform textareafield[name=text]'
 	    },
 	    control: {
 	    	notesForm: {
@@ -23,7 +24,9 @@ Ext.define('Notes.controller.NotesFormController', {
                 changeText: 'onChangeText',
                 prevButtonClick: 'onPrevButtonClick',
                 nextButtonClick: 'onNextButtonClick',
-                createNewNote: 'onCreateNewNote'
+                createNewNote: 'onCreateNewNote',
+                changeTextNote: 'onChangeTextNote',
+                paintedTextNote: 'onPaintedTextNote'
 	    	},
             notesContainer: {
                 editNote: 'onEditNote'
@@ -104,11 +107,12 @@ Ext.define('Notes.controller.NotesFormController', {
         this.changeToolbarTitle(argText);
         this.getSaveButton().setHidden(false);
         this.getNewNoteButton().setHidden(true);
+        this.adjustTextAreaHeight();
     },
 
     changeToolbarTitle: function(argTitle){
         var tmpTitle = Notes.util.StringUtil.getTitleFromText(argTitle);
-        this.getNotesTitleToolbar().setTitle(tmpTitle);
+        this.getNotesTitleToolbar().setHtml(tmpTitle);
         return tmpTitle;
     },
 
@@ -242,6 +246,22 @@ Ext.define('Notes.controller.NotesFormController', {
         }else{
             this.getMainTitleToolbar().setTitle('Notes ('+ tmpNotesStore.getData().length +')');
             this.getSearchToolbar().setHidden(false);
+        }
+    },
+
+    onChangeTextNote: function(){
+        this.adjustTextAreaHeight();
+    },
+
+    onPaintedTextNote: function(){
+        this.adjustTextAreaHeight();
+    },
+
+    adjustTextAreaHeight: function(){
+        var numOfRows = this.getTextNote().getValue().split("\n").length;
+        if( numOfRows>=4){
+            numOfRows= numOfRows+1;
+            this.getTextNote().setMaxRows( numOfRows );
         }
     }
 
