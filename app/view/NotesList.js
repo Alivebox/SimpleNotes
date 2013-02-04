@@ -9,13 +9,13 @@ Ext.define("Notes.view.NotesList", {
     	grouped: true,
     	emptyText: 
     		'<pre>' +
-    			'<div class="notesListEmptyText"></div>' +
+    			'<div></div>' +
     		'</pre>',
     	itemTpl: 
     		'<pre>' +
-    			'<div>' +
-                '<span class="list-item-narrative">{text}</span>' +
-                '<img class="list-item-icon" src="resources/images/goto_up.png"/>' +
+                '<div>' +
+                    '<label class="list-item-narrative">{text}</label>' +
+                    '<img class="list-item-icon" src="resources/images/goto_up.png"/>' +
                 '</div>' +
     		'</pre>'
 

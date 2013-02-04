@@ -63698,7 +63698,7 @@ Ext.define('Notes.controller.NotesContainerController', {
 	    refs: {
 	    	notesContainer: 'notescontainer',
             notesForm: 'notesform',
-            notesTitleToolbar: 'notesform toolbar[name=titleNote]',
+            notesTitleToolbar: 'notesform label[name=titleNote]',
             mainTitleToolbar: 'notescontainer toolbar[name=mainToolbar]',
             navigationToolbar: 'notesform toolbar[name=navToolbar]',
             notesList: 'notescontainer list[name=notesList]',
@@ -63770,7 +63770,7 @@ Ext.define('Notes.controller.NotesContainerController', {
     },
 
     changeToolbarTitle: function(argTitle){
-        this.getNotesTitleToolbar().setTitle(Notes.util.StringUtil.getTitleFromText(argTitle));
+        this.getNotesTitleToolbar().setHtml(Notes.util.StringUtil.getTitleFromText(argTitle));
     },
 
     onRefreshList: function(argList){
@@ -63843,14 +63843,15 @@ Ext.define('Notes.controller.NotesFormController', {
 	    refs: {
 	    	notesForm: 'notesform',
 	    	notesContainer: 'notescontainer',
-            notesTitleToolbar: 'notesform toolbar[name=titleNote]',
+            notesTitleToolbar: 'notesform label[name=titleNote]',
             navigationToolbar: 'notesform toolbar[name=navToolbar]',
             prevButton: 'notesform button[name=previousButton]',
             nextButton: 'notesform button[name=nextButton]',
             saveButton: 'notesform button[name=savebutton]',
             newNoteButton: 'notesform button[name=newNoteButton]',
             mainTitleToolbar: 'notescontainer toolbar[name=mainToolbar]',
-            searchToolbar: 'notescontainer toolbar[name=searchToolbar]'
+            searchToolbar: 'notescontainer toolbar[name=searchToolbar]',
+            textNote: 'notesform textareafield[name=text]'
 	    },
 	    control: {
 	    	notesForm: {
@@ -63860,7 +63861,9 @@ Ext.define('Notes.controller.NotesFormController', {
                 changeText: 'onChangeText',
                 prevButtonClick: 'onPrevButtonClick',
                 nextButtonClick: 'onNextButtonClick',
-                createNewNote: 'onCreateNewNote'
+                createNewNote: 'onCreateNewNote',
+                changeTextNote: 'onChangeTextNote',
+                paintedTextNote: 'onPaintedTextNote'
 	    	},
             notesContainer: {
                 editNote: 'onEditNote'
@@ -63927,6 +63930,8 @@ Ext.define('Notes.controller.NotesFormController', {
     },
     
     onBackToHome: function(){
+        this.getSaveButton().setHidden(false);
+        this.getNewNoteButton().setHidden(true);
     	this.activateNotesList();
         this.setNavigationToolbarVisible(true);
     },
@@ -63941,11 +63946,12 @@ Ext.define('Notes.controller.NotesFormController', {
         this.changeToolbarTitle(argText);
         this.getSaveButton().setHidden(false);
         this.getNewNoteButton().setHidden(true);
+        this.adjustTextAreaHeight();
     },
 
     changeToolbarTitle: function(argTitle){
         var tmpTitle = Notes.util.StringUtil.getTitleFromText(argTitle);
-        this.getNotesTitleToolbar().setTitle(tmpTitle);
+        this.getNotesTitleToolbar().setHtml(tmpTitle);
         return tmpTitle;
     },
 
@@ -64079,6 +64085,22 @@ Ext.define('Notes.controller.NotesFormController', {
         }else{
             this.getMainTitleToolbar().setTitle('Notes ('+ tmpNotesStore.getData().length +')');
             this.getSearchToolbar().setHidden(false);
+        }
+    },
+
+    onChangeTextNote: function(){
+        this.adjustTextAreaHeight();
+    },
+
+    onPaintedTextNote: function(){
+        this.adjustTextAreaHeight();
+    },
+
+    adjustTextAreaHeight: function(){
+        var numOfRows = this.getTextNote().getValue().split("\n").length;
+        if( numOfRows>=4){
+            numOfRows= numOfRows+1;
+            this.getTextNote().setMaxRows( numOfRows );
         }
     }
 
@@ -64223,7 +64245,7 @@ Ext.define("Notes.view.NotesContainer", {
     		store: Ext.getStore("NoteItems"),
     		listeners: {
     			scope: this,
-    			select: this.onEditNote,
+    			itemtap: this.onEditNote,
                 refresh: this.onRefreshData
     		}
     	};
@@ -64236,7 +64258,8 @@ Ext.define("Notes.view.NotesContainer", {
             xtype: 'searchfield',
             name: 'searchNotes',
             placeHolder: ' Search',
-            width: '99%',
+            width: '100%',
+            cls: 'seachfield',
             listeners: {
                 scope: this,
                 keyup: this.onSearchKeyUp,
@@ -64260,7 +64283,7 @@ Ext.define("Notes.view.NotesContainer", {
     	this.fireEvent("newNote");
     },
     
-    onEditNote: function(argList,argNote,eOpts){
+    onEditNote: function(argList,argIndex,argTarget,argNote,argE,eOpts){
     	this.fireEvent("editNote",argNote);
     },
 
@@ -64301,6 +64324,7 @@ Ext.define("Notes.view.NotesForm", {
             tmpTextArea,
         	tmpBottomBar
         ]);
+
     },
 
     createDateToolbar: function(){
@@ -64313,10 +64337,10 @@ Ext.define("Notes.view.NotesForm", {
             docked: 'top',
             items: [
                 {
-                    xtype: 'spacer'
-                },{
                     xtype: 'label',
                     html: Ext.Date.format(new Date(), 'F j Y')
+                },{
+                    xtype: 'spacer'
                 }
             ]
         };
@@ -64350,15 +64374,22 @@ Ext.define("Notes.view.NotesForm", {
             handler: this.onNewNoteClick
         };
 
+        var tmpNoteTitle={
+            xtype: 'label',
+            name: 'titleNote',
+            html: 'New Note',
+            cls: 'noteTitleLabel'
+        };
+
         var tmpTopToolbar = {
             xtype: "toolbar",
             docked: "top",
             height: 80,
-            title: "New Note",
-            name: 'titleNote',
             cls: 'titletoolbar',
             items: [
                 tmpBackButton,
+                { xtype: "spacer" },
+                tmpNoteTitle,
                 { xtype: "spacer" },
                 tmpSaveButton,
                 tmpNewNote
@@ -64423,13 +64454,29 @@ Ext.define("Notes.view.NotesForm", {
         var tmpNoteTextField = {
             xtype: 'textareafield',
             name: 'text',
-            docked: 'top',
+            clearIcon: false,
+            maxRows: 4,
             listeners: {
                 scope: this,
-                keyup: this.onChangeText
+                keyup: this.onChangeText,
+                change: this.onchangeTextNote,
+                painted: this.onPaintedText
             }
         };
-    	return tmpNoteTextField;
+
+        var tmpContainer={
+            xtype:'container',
+            docked: 'top',
+            width: '100%',
+            height: '77%',
+            scrollable: true,
+            centered: true,
+            items: [
+                tmpNoteTextField
+            ]
+        };
+
+    	return tmpContainer;
     },
 
     onSaveNote: function(){
@@ -64458,6 +64505,14 @@ Ext.define("Notes.view.NotesForm", {
 
     onNewNoteClick: function(){
         this.fireEvent('createNewNote');
+    },
+
+    onchangeTextNote: function(argTextAreaField,argNewValue,argOldValue,eOpts ){
+        this.fireEvent('changeTextNote');
+    },
+
+    onPaintedText: function(argTextAreaField,eOpts){
+        this.fireEvent('paintedTextNote');
     }
     
 });
@@ -64477,9 +64532,9 @@ Ext.define("Notes.view.NotesList", {
     		'</pre>',
     	itemTpl: 
     		'<pre>' +
-    			'<div>' +
-                '<span class="list-item-narrative">{text}</span>' +
-                '<img class="list-item-icon" src="resources/images/goto_up.png"/>' +
+                '<div>' +
+                    '<label class="list-item-narrative">{text}</label>' +
+                    '<img class="list-item-icon" src="resources/images/goto_up.png"/>' +
                 '</div>' +
     		'</pre>'
 
@@ -64509,7 +64564,9 @@ Ext.define('Notes.util.StringUtil', {
                 var lines = argText.split('\n');
                 tmpTitle = lines[0];
             }
-
+//            if(tmpTitle.length > 10){
+//                tmpTitle = tmpTitle.substring(0,7)+'...';
+//            }
             return tmpTitle;
         }
     }

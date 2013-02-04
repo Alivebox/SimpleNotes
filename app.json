@@ -64,9 +64,6 @@
         {
             "path": "resources/css/app.css",
             "update": "delta"
-        },{
-            "path": "resources/css/notes-styles.css",
-            "update": "delta"
         }
     ],
 
@@ -98,8 +95,7 @@
     "resources": [
         "resources/images",
         "resources/icons",
-        "resources/startup",
-        "resources/css"
+        "resources/startup"
     ],
 
     /**

@@ -48,6 +48,7 @@ Ext.define("Notes.view.NotesContainer", {
     		xtype: "button",
     		name: 'newNoteButton',
             iconCls: 'add',
+            ui: 'defaultbutton',
             iconMask: true,
     		scope: this,
     		handler: this.onNewNote

@@ -21,24 +21,21 @@
 
 .list-item-narrative{
 	color:#545454;
-    width:100%;
     font-weight: bold;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     padding-right:25px;
+    width: 95%;
+    display: inline-block;
+}
+
+.x-dock.x-unsized > .x-dock-body > *, .x-dock.x-stretched > .x-dock-body > * {
+    max-height: 46px;
 }
 
 .x-item-selected .list-item-narrative {
     color:#545454 !important;
-}
-
-.x-item-selected .list-item-title{
-    color:#ffffff;
-}
-
-.x-item-selected .list-item-narrative{
-    color:#ffffff;
 }
 
 /**Toolbar main container - Start*/
@@ -76,6 +73,10 @@
 
 .notescontainer .x-button-icon.add, .x-button .x-button-icon.x-icon-mask.add{
     background-image: url('../images/add_up.png');
+    -webkit-background-size: 100% 100%;
+    -khtml-background-size: 100% 100%;
+    -o-background-size: 100% 100%;
+    background-size: 100% 100%;
 }
 
 /**Buttons Toolbar main container - End*/
@@ -105,7 +106,7 @@
     border: 1px solid #3ACEFF;
     border-top-color: #6cDAFF;
     color: #FFFFFF;
-    text-align: right;
+    text-align: left;
 }
 
 .dateContainer{
@@ -113,8 +114,7 @@
     border: 1px solid #3ACEFF;
     border-top-color: #6cDAFF;
     color: #FFFFFF;
-    text-align: right;
-    padding-right: 10px;
+    padding-left: 16px;
     font-weight: bold;
     padding-top: 3px;
 }
@@ -133,31 +133,35 @@
 
 .list-item-icon{
     float: right;
-    padding-bottom: 10px;
+}
+
+.label-list-item{
+    width: 50px;
+    right: 50;
 }
 
 .deletenote{
     background-image: url('../images/delete_up.png');
-    -webkit-background-size: 30px 32px;
-    -khtml-background-size: 30px 32px;
-    -o-background-size: 30px 32px;
-    background-size: 30px 32px;
+    -webkit-background-size: 100% 100%;
+    -khtml-background-size: 100% 100%;
+    -o-background-size: 100% 100%;
+    background-size: 100% 100%;
 }
 
 .nextbutton{
     background-image: url('../images/next_up.png');
-    -webkit-background-size: 48px 48px;
-    -khtml-background-size: 48px 48px;
-    -o-background-size: 48px 48px;
-    background-size: 48px 48px;
+    -webkit-background-size: 100% 100%;
+    -khtml-background-size: 100% 100%;
+    -o-background-size: 100% 100%;
+    background-size: 100% 100%;
 }
 
 .prevbutton{
     background-image: url('../images/preview_up.png');
-    -webkit-background-size: 48px 48px;
-    -khtml-background-size: 48px 48;
-    -o-background-size: 48px 48px;
-    background-size: 48px 48px;
+    -webkit-background-size: 100% 100%;
+    -khtml-background-size: 100% 100%;
+    -o-background-size: 100% 100%;
+    background-size: 100% 100%;
 }
 
 .notesform{
@@ -195,20 +199,47 @@
     opacity: 0.3;
 }
 
-/*.notescontainer .x-list-item-inner-pressed{*/
-    /*background-color: #BBF1FE !important;*/
-/*}*/
+.notescontainer .x-button {
+    height: 55px;
+    width: 65px;
+    font-weight: bold;
+}
 
-/*.notescontainer .x-list-item.x-item-selected{*/
-    /*background-color: #BBF1FE !important;*/
-/*}*/
+.titletoolbar .x-button {
+    height: 50px;
+    width: 80px;
+    font-weight: bold;
+}
 
-/** Navigation buttons - start*/
+.titletoolbar .x-button.add {
+    height: 55px;
+    width: 65px;
+    font-weight: bold;
+}
 
-/*.x-button-icon.trash, .x-button .x-button-icon.x-icon-mask.trash {*/
-    /*-webkit-mask-image: inline-image('../images/delete_up.png');*/
-/*}*/
+.seachfield{
+    padding-right: 15px;
+}
+.x-field-search .x-field-input .x-form-field {
+    margin-left: 1.3em;
+}
 
+.x-toolbar .x-field .x-clear-icon {
+    right: -0.6em;
+}
+
+.noteTitleLabel{
+    left: 120;
+    right:120;
+    top: 30;
+    height: 25px;
+    width: 55%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    text-align: center;
+}
 /** Navigation buttons - end*/
 
 /** NOTES LIST - END */

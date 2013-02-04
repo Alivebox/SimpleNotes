@@ -26,20 +26,11 @@ Ext.define("Notes.view.NotesForm", {
 
     createDateToolbar: function(){
         var tmpToolbar = {
-            xtype: 'container',
-            layout: 'hbox',
-            height: 30,
+            xtype: 'label',
             width: '100%',
-            cls: 'dateContainer',
             docked: 'top',
-            items: [
-                {
-                    xtype: 'label',
-                    html: Ext.Date.format(new Date(), 'F j Y')
-                },{
-                    xtype: 'spacer'
-                }
-            ]
+            ui:'datecontainer',
+            html: Ext.Date.format(new Date(), 'F j Y')
         };
 
         return tmpToolbar;
@@ -49,6 +40,7 @@ Ext.define("Notes.view.NotesForm", {
     	var tmpBackButton = {
             xtype: "button",
             text: "Notes",
+            ui: 'defaultbutton',
             scope: this,
             handler: this.onBackToHome
         };
@@ -57,6 +49,7 @@ Ext.define("Notes.view.NotesForm", {
             xtype: "button",
             name: 'savebutton',
             text: "Done",
+            ui: 'defaultbutton',
             scope: this,
             handler: this.onSaveNote
         };
@@ -64,6 +57,7 @@ Ext.define("Notes.view.NotesForm", {
         var tmpNewNote={
             xtype: "button",
             name: 'newNoteButton',
+            ui: 'defaultbutton',
             iconCls: 'add',
             iconMask: true,
             scope: this,
@@ -100,6 +94,7 @@ Ext.define("Notes.view.NotesForm", {
             xtype: "button",
             scope: this,
             align: 'center',
+            ui: 'transpatentbutton',
             iconCls: 'deletenote',
             handler: this.onRemoveNote
         };
@@ -108,6 +103,7 @@ Ext.define("Notes.view.NotesForm", {
             xtype: 'button',
             scope: this,
             name: 'previousButton',
+            ui: 'transpatentbutton',
             iconCls: 'prevbutton',
             align: 'left',
             listeners: {
@@ -122,6 +118,7 @@ Ext.define("Notes.view.NotesForm", {
             name: 'nextButton',
             align: 'right',
             iconCls: 'nextbutton',
+            ui: 'transpatentbutton',
             listeners: {
                 scope: this,
                 tap: this.onNextButtonClick
@@ -133,7 +130,7 @@ Ext.define("Notes.view.NotesForm", {
             docked: "bottom",
             hidden: true,
             name: 'navToolbar',
-            cls: 'navtoolbar',
+            ui: 'navigationtoolbar',
             items: [
                 tmpPrevButton,{
                     xtype: 'spacer'
@@ -165,7 +162,7 @@ Ext.define("Notes.view.NotesForm", {
             xtype:'container',
             docked: 'top',
             width: '100%',
-            height: '77%',
+            height: '20%',
             scrollable: true,
             centered: true,
             items: [
