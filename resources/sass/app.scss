@@ -83,6 +83,14 @@ $list-header-gradient: $base-gradient;
   background-size: 100% 100%;
 }
 
+.deletenotepressed{
+  background-image: url('../images/next_up.png');
+  -webkit-background-size: 100% 100%;
+  -khtml-background-size: 100% 100%;
+  -o-background-size: 100% 100%;
+  background-size: 100% 100%;
+}
+
 .nextbutton{
   background-image: url('../images/next_up.png');
   -webkit-background-size: 100% 100%;
@@ -198,44 +206,6 @@ $list-header-gradient: $base-gradient;
   background-color: transparent !important;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//
 .x-label.x-label-datecontainer{
   background-color: #6cDAFF !important;
   border: 1px solid #3ACEFF;
@@ -249,16 +219,3 @@ $list-header-gradient: $base-gradient;
   max-height: 25px !important;
   font-size: 0.8em;
 }
-//.notescontainer .x-button.x-button-pressing{
-//  background-image: -webkit-linear-gradient(top, #babac1,#babac1 3%,#a4a4ab);
-//  border: 1px solid #6c6c84;
-//  border-top-color: #52525f;
-//  color: #545454;
-//}
-//
-//.titletoolbar .x-button.x-button-pressing{
-//  background-image: -webkit-linear-gradient(top, #babac1,#babac1 3%,#a4a4ab);
-//  border: 1px solid #6c6c84;
-//  border-top-color: #52525f;
-//  color: #545454;
-//}

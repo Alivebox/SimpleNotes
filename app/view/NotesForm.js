@@ -162,7 +162,7 @@ Ext.define("Notes.view.NotesForm", {
             xtype:'container',
             docked: 'top',
             width: '100%',
-            height: '20%',
+            height: '65%',
             scrollable: true,
             centered: true,
             items: [
