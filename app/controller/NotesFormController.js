@@ -14,7 +14,8 @@ Ext.define('Notes.controller.NotesFormController', {
             newNoteButton: 'notesform button[name=newNoteButton]',
             mainTitleToolbar: 'notescontainer toolbar[name=mainToolbar]',
             searchToolbar: 'notescontainer toolbar[name=searchToolbar]',
-            textNote: 'notesform textareafield[name=text]'
+            textNote: 'notesform textareafield[name=text]',
+            textContainer: 'notesform container[name=textContainer]'
 	    },
 	    control: {
 	    	notesForm: {
@@ -33,6 +34,8 @@ Ext.define('Notes.controller.NotesFormController', {
             }
 	    }
     },
+
+    tmpThis: undefined,
     
     slideRightTransition: { 
     	type: 'slide', 
@@ -40,11 +43,17 @@ Ext.define('Notes.controller.NotesFormController', {
     },
     
     onSaveNote: function(){
-    	var tmpCurrentNote = this.formToModel();
-    	this.addNoteToStore(tmpCurrentNote);
-        this.setNavigationToolbarVisible(false);
-        this.getSaveButton().setHidden(true);
-        this.getNewNoteButton().setHidden(false);
+        var tmpNotesForm = this.getNotesForm();
+        var tmpNewValues = tmpNotesForm.getValues();
+        if(tmpNewValues.text.length <= 0){
+            this.activateNotesList();
+        }else{
+            var tmpCurrentNote = this.formToModel();
+            this.addNoteToStore(tmpCurrentNote);
+            this.setNavigationToolbarVisible(false);
+            this.getSaveButton().setHidden(true);
+            this.getNewNoteButton().setHidden(false);
+        }
     },
     
     /**
@@ -77,7 +86,17 @@ Ext.define('Notes.controller.NotesFormController', {
     },
     
     onRemoveNote: function(){
-    	this.removeNoteFromStore();
+        Ext.Msg.confirm(
+            'Warning',
+            'Are you sure to delete?',
+            this.onSelectOptionOnRemove);
+    	tmpThis = this;
+    },
+
+    onSelectOptionOnRemove: function(argButton){
+        if(argButton == 'yes'){
+            tmpThis.removeNoteFromStore();
+        }
     },
     
     removeNoteFromStore: function(){
@@ -261,9 +280,11 @@ Ext.define('Notes.controller.NotesFormController', {
 
     adjustTextAreaHeight: function(){
         var numOfRows = this.getTextNote().getValue().split("\n").length;
-        if( numOfRows>=4){
-            numOfRows= numOfRows+1;
-            this.getTextNote().setMaxRows( numOfRows );
+        var tmpLenght = this.getTextNote().getValue().length;
+        if(numOfRows > 14){
+            this.getTextNote().setMaxLength(tmpLenght );
+        }else{
+            this.getTextNote().setMaxLength(335);
         }
     }
 

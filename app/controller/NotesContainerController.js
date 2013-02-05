@@ -12,7 +12,8 @@ Ext.define('Notes.controller.NotesContainerController', {
             notesList: 'notescontainer list[name=notesList]',
             saveButton: 'notesform button[name=savebutton]',
             newNoteButton: 'notesform button[name=newNoteButton]',
-            searchToolbar: 'notescontainer toolbar[name=searchToolbar]'
+            searchToolbar: 'notescontainer toolbar[name=searchToolbar]',
+            textArea: 'notesform textareafield[name=text]'
 	    },
 	    control: {
 	    	notesContainer: {

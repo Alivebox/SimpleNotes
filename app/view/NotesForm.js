@@ -57,7 +57,7 @@ Ext.define("Notes.view.NotesForm", {
         var tmpNewNote={
             xtype: "button",
             name: 'newNoteButton',
-            ui: 'defaultbutton',
+            ui: 'addbutton',
             iconCls: 'add',
             iconMask: true,
             scope: this,
@@ -149,7 +149,8 @@ Ext.define("Notes.view.NotesForm", {
             xtype: 'textareafield',
             name: 'text',
             clearIcon: false,
-            maxRows: 4,
+            maxRows: 14,
+            maxLength: 335,
             listeners: {
                 scope: this,
                 keyup: this.onChangeText,
@@ -160,9 +161,10 @@ Ext.define("Notes.view.NotesForm", {
 
         var tmpContainer={
             xtype:'container',
+            name: 'textContainer',
             docked: 'top',
             width: '100%',
-            height: '65%',
+            height: '68%',
             scrollable: true,
             centered: true,
             items: [
@@ -208,5 +210,5 @@ Ext.define("Notes.view.NotesForm", {
     onPaintedText: function(argTextAreaField,eOpts){
         this.fireEvent('paintedTextNote');
     }
-    
+
 });
