@@ -1,7 +1,7 @@
 /*
 This file is part of Sencha Touch 2.1
 
-Copyright (c) 2011-2012 Sencha Inc
+Copyright (c) 2011-2013 Sencha Inc
 
 Contact:  http://www.sencha.com/contact
 
@@ -13,7 +13,7 @@ terms contained in a written agreement between you and Sencha.
 If you are unsure which license is appropriate for your use, please contact the sales department
 at http://www.sencha.com/contact.
 
-Build date: 2012-11-05 22:31:29 (08c91901ae8449841ff23e5d3fb404d6128d3b0b)
+Build date: 2013-02-05 12:25:50 (3ba7c63bea96e5ea776e2bbd67cfb0aa01e43322)
 */
 //@tag foundation,core
 //@define Ext
@@ -361,6 +361,19 @@ Build date: 2012-11-05 22:31:29 (08c91901ae8449841ff23e5d3fb404d6128d3b0b)
          */
         isDate: function(value) {
             return toString.call(value) === '[object Date]';
+        },
+
+        /**
+         * Returns 'true' if the passed value is a String that matches the MS Date JSON encoding format
+         * @param value {String} The string to test
+         * @return {Boolean}
+         */
+        isMSDate: function(value) {
+            if (!Ext.isString(value)) {
+                return false;
+            } else {
+                return value.match("\\\\?/Date\\(([-+])?(\\d+)(?:[+-]\\d{4})?\\)\\\\?/") !== null;
+            }
         },
 
         /**
@@ -1932,40 +1945,37 @@ Ext.urlAppend = Ext.String.urlAppend;
         intersect: function() {
             var intersect = [],
                 arrays = slice.call(arguments),
-                i, j, k, minArray, array, x, y, ln, arraysLn, arrayLn;
+                item, minArray, itemIndex, arrayIndex;
 
             if (!arrays.length) {
                 return intersect;
             }
 
-            // Find the smallest array
-            for (i = x = 0,ln = arrays.length; i < ln,array = arrays[i]; i++) {
-                if (!minArray || array.length < minArray.length) {
-                    minArray = array;
-                    x = i;
+            //Find the Smallest Array
+            arrays = arrays.sort(function(a, b) {
+                if (a.length > b.length) {
+                    return 1;
+                } else if (a.length < b.length) {
+                    return -1;
+                } else {
+                    return 0;
                 }
-            }
+            });
 
-            minArray = ExtArray.unique(minArray);
-            erase(arrays, x, 1);
+            //Remove duplicates from smallest array
+            minArray = ExtArray.unique(arrays[0]);
 
-            // Use the smallest unique'd array as the anchor loop. If the other array(s) do contain
-            // an item in the small array, we're likely to find it before reaching the end
-            // of the inner loop and can terminate the search early.
-            for (i = 0,ln = minArray.length; i < ln,x = minArray[i]; i++) {
-                var count = 0;
-
-                for (j = 0,arraysLn = arrays.length; j < arraysLn,array = arrays[j]; j++) {
-                    for (k = 0,arrayLn = array.length; k < arrayLn,y = array[k]; k++) {
-                        if (x === y) {
-                            count++;
-                            break;
-                        }
+            //Populate intersecting values
+            for (itemIndex = 0; itemIndex < minArray.length; itemIndex++) {
+                item = minArray[itemIndex];
+                for (arrayIndex = 1; arrayIndex < arrays.length; arrayIndex++) {
+                    if (arrays[arrayIndex].indexOf(item) === -1) {
+                        break;
                     }
-                }
 
-                if (count === arraysLn) {
-                    intersect.push(x);
+                    if (arrayIndex == (arrays.length - 1)) {
+                        intersect.push(item);
+                    }
                 }
             }
 
@@ -3542,7 +3552,11 @@ Ext.JSON = new(function() {
         } else if (Ext.isDate(o)) {
             return Ext.JSON.encodeDate(o);
         } else if (Ext.isString(o)) {
-            return encodeString(o);
+            if (Ext.isMSDate(o)) {
+               return encodeMSDate(o);
+            } else {
+                return encodeString(o);
+            }
         } else if (typeof o == "number") {
             //don't use isNumber here, since finite checks happen inside isNumber
             return isFinite(o) ? String(o) : "null";
@@ -3596,6 +3610,9 @@ Ext.JSON = new(function() {
         // Overwrite trailing comma (or empty string)
         a[a.length - 1] = '}';
         return a.join("");
+    },
+    encodeMSDate = function(o) {
+        return '"' + o + '"';
     };
 
     /**
@@ -8717,7 +8734,7 @@ var noArgs = [],
  *
  * [getting_started]: #!/guide/getting_started
  */
-Ext.setVersion('touch', '2.1.0');
+Ext.setVersion('touch', '2.1.1');
 
 Ext.apply(Ext, {
     /**
@@ -10409,7 +10426,7 @@ Ext.define('Ext.env.OS', {
             ios: 'i(?:Pad|Phone|Pod)(?:.*)CPU(?: iPhone)? OS ',
             android: '(Android |HTC_|Silk/)', // Some HTC devices ship with an OSX userAgent by default,
                                         // so we need to add a direct check for HTC_
-            blackberry: 'BlackBerry(?:.*)Version\/',
+            blackberry: '(?:BlackBerry|BB)(?:.*)Version\/',
             rimTablet: 'RIM Tablet OS ',
             webos: '(?:webOS|hpwOS)\/',
             bada: 'Bada\/'
@@ -10619,7 +10636,7 @@ Ext.define('Ext.env.OS', {
             // always set it to false when you are on a desktop
             Ext.browser.is.WebView = false;
         }
-        else if (osEnv.is.iPad || osEnv.is.Android3 || (osEnv.is.Android4 && userAgent.search(/mobile/i) == -1)) {
+        else if (osEnv.is.iPad || osEnv.is.RIMTablet || osEnv.is.Android3 || (osEnv.is.Android4 && userAgent.search(/mobile/i) == -1)) {
             deviceType = 'Tablet';
         }
         else {
@@ -15035,15 +15052,17 @@ Ext.define('Ext.event.Dispatcher', {
     addListener: function(targetType, target, eventName) {
         var publishers = this.getActivePublishers(targetType, eventName),
             ln = publishers.length,
-            i;
+            i, result;
 
-        if (ln > 0) {
+        result = this.doAddListener.apply(this, arguments);
+
+        if (result && ln > 0) {
             for (i = 0; i < ln; i++) {
                 publishers[i].subscribe(target, eventName);
             }
         }
 
-        return this.doAddListener.apply(this, arguments);
+        return result;
     },
 
     doAddListener: function(targetType, target, eventName, fn, scope, options, order) {
@@ -15055,15 +15074,17 @@ Ext.define('Ext.event.Dispatcher', {
     removeListener: function(targetType, target, eventName) {
         var publishers = this.getActivePublishers(targetType, eventName),
             ln = publishers.length,
-            i;
+            i, result;
 
-        if (ln > 0) {
+        result = this.doRemoveListener.apply(this, arguments);
+
+        if (result && ln > 0) {
             for (i = 0; i < ln; i++) {
                 publishers[i].unsubscribe(target, eventName);
             }
         }
 
-        return this.doRemoveListener.apply(this, arguments);
+        return result;
     },
 
     doRemoveListener: function(targetType, target, eventName, fn, scope, order) {
@@ -15709,7 +15730,7 @@ Ext.define('Ext.mixin.Observable', {
      *
      * @param {String/String[]/Object} eventName The name of the event to listen for. May also be an object who's property names are
      * event names.
-     * @param {Function} fn The method the event invokes.  Will be called with arguments given to
+     * @param {Function/String} fn The method the event invokes.  Will be called with arguments given to
      * {@link #fireEvent} plus the `options` parameter described below.
      * @param {Object} [scope] The scope (`this` reference) in which the handler function is executed. **If
      * omitted, defaults to the object which fired the event.**
@@ -15786,7 +15807,7 @@ Ext.define('Ext.mixin.Observable', {
      * Same as {@link #addListener} with `order` set to `'before'`.
      *
      * @param {String/String[]/Object} eventName The name of the event to listen for.
-     * @param {Function} fn The method the event invokes.
+     * @param {Function/String} fn The method the event invokes.
      * @param {Object} [scope] The scope for `fn`.
      * @param {Object} [options] An object containing handler configuration.
      */
@@ -15800,7 +15821,7 @@ Ext.define('Ext.mixin.Observable', {
      * Same as {@link #addListener} with `order` set to `'after'`.
      *
      * @param {String/String[]/Object} eventName The name of the event to listen for.
-     * @param {Function} fn The method the event invokes.
+     * @param {Function/String} fn The method the event invokes.
      * @param {Object} [scope] The scope for `fn`.
      * @param {Object} [options] An object containing handler configuration.
      */
@@ -15812,7 +15833,7 @@ Ext.define('Ext.mixin.Observable', {
      * Removes an event handler.
      *
      * @param {String/String[]/Object} eventName The type of event the handler was associated with.
-     * @param {Function} fn The handler to remove. **This must be a reference to the function passed into the
+     * @param {Function/String} fn The handler to remove. **This must be a reference to the function passed into the
      * {@link #addListener} call.**
      * @param {Object} [scope] The scope originally specified for the handler. It must be the same as the
      * scope argument specified in the original call to {@link #addListener} or the listener will not be removed.
@@ -15830,7 +15851,7 @@ Ext.define('Ext.mixin.Observable', {
      * Same as {@link #removeListener} with `order` set to `'before'`.
      *
      * @param {String/String[]/Object} eventName The name of the event the handler was associated with.
-     * @param {Function} fn The handler to remove.
+     * @param {Function/String} fn The handler to remove.
      * @param {Object} [scope] The scope originally specified for `fn`.
      * @param {Object} [options] Extra options object.
      */
@@ -15844,7 +15865,7 @@ Ext.define('Ext.mixin.Observable', {
      * Same as {@link #removeListener} with `order` set to `'after'`.
      *
      * @param {String/String[]/Object} eventName The name of the event the handler was associated with.
-     * @param {Function} fn The handler to remove.
+     * @param {Function/String} fn The handler to remove.
      * @param {Object} [scope] The scope originally specified for `fn`.
      * @param {Object} [options] Extra options object.
      */
@@ -15880,18 +15901,14 @@ Ext.define('Ext.mixin.Observable', {
     /**
      * Suspends the firing of all events. (see {@link #resumeEvents})
      *
-     * @param {Boolean} queueSuspended Pass as true to queue up suspended events to be fired
-     * after the {@link #resumeEvents} call instead of discarding all suspended events.
      */
-    suspendEvents: function(queueSuspended) {
+    suspendEvents: function() {
         this.eventFiringSuspended = true;
     },
 
     /**
      * Resumes firing events (see {@link #suspendEvents}).
      *
-     * If events were suspended using the `queueSuspended` parameter, then all events fired
-     * during event suspension will be sent to any listeners now.
      */
     resumeEvents: function() {
         this.eventFiringSuspended = false;
@@ -17189,7 +17206,7 @@ Ext.DateExtras = {
         "MS": function(input, strict) {
             // note: the timezone offset is ignored since the MS Ajax server sends
             // a UTC milliseconds-since-Unix-epoch value (negative values are allowed)
-            var re = new RegExp('\\/Date\\(([-+])?(\\d+)(?:[+-]\\d{4})?\\)\\/');
+            var re = new RegExp('\\\\?/Date\\(([-+])?(\\d+)(?:[+-]\\d{4})?\\)\\\\?/');
             var r = (input || '').match(re);
             return r? new Date(((r[1] || '') + r[2]) * 1) : null;
         }
@@ -20579,7 +20596,7 @@ Ext.define('Ext.util.Translatable', {
         }
 
         if (!classReference) {
-            if (Ext.os.is.Android2 || Ext.browser.is.ChromeMobile) {
+            if (Ext.os.is.Android2) {
                 classReference = ScrollPosition;
             }
             else {
@@ -20913,7 +20930,6 @@ Ext.define('Ext.util.Draggable', {
         if (this.getDisabled()) {
             return false;
         }
-
         var offset = this.offset;
 
         this.fireAction('dragstart', [this, e, offset.x, offset.y], this.initDragStart);
@@ -22512,8 +22528,9 @@ Ext.define('Ext.Component', {
      * @private
      * All cls methods directly report to the {@link #cls} configuration, so anytime it changes, {@link #updateCls} will be called
      */
-    updateCls: function(newCls, oldCls) {
-        if (oldCls != newCls && this.element) {
+    updateCls: function (newCls, oldCls) {
+        if (this.element && ((newCls && !oldCls) || (!newCls && oldCls) || newCls.length != oldCls.length || Ext.Array.difference(newCls,
+            oldCls).length > 0)) {
             this.element.replaceCls(oldCls, newCls);
         }
     },
@@ -22869,7 +22886,8 @@ Ext.define('Ext.Component', {
         return docked;
     },
 
-    doSetDocked: function(docked) {
+    doSetDocked: function(docked, oldDocked) {
+        this.fireEvent('afterdockedchange', this, docked, oldDocked);
         if (!docked) {
             this.refreshInnerState();
         }
@@ -22909,7 +22927,6 @@ Ext.define('Ext.Component', {
 
         if (floating !== this.floating) {
             this.floating = floating;
-            this.element.toggleCls(floatingCls, floating);
 
             if (floating) {
                 this.refreshInnerState = Ext.emptyFn;
@@ -22926,6 +22943,8 @@ Ext.define('Ext.Component', {
 
                 delete this.refreshInnerState;
             }
+
+            this.element.toggleCls(floatingCls, floating);
 
             if (this.initialized) {
                 this.fireEvent('floatingchange', this, floating);
@@ -24181,9 +24200,9 @@ Ext.define('Ext.layout.Default', {
         this.callSuper(arguments);
 
         container.on('centeredchange', 'onItemCenteredChange', this, options, 'before')
-                 .on('floatingchange', 'onItemFloatingChange', this, options, 'before')
-                 .on('dockedchange', 'onBeforeItemDockedChange', this, options, 'before')
-                 .on('dockedchange', 'onAfterItemDockedChange', this, options);
+            .on('floatingchange', 'onItemFloatingChange', this, options, 'before')
+            .on('dockedchange', 'onBeforeItemDockedChange', this, options, 'before')
+            .on('afterdockedchange', 'onAfterItemDockedChange', this, options);
     },
 
     monitorSizeStateChange: function() {
@@ -24325,6 +24344,13 @@ Ext.define('Ext.layout.Default', {
     onAfterItemDockedChange: function(item, docked, oldDocked) {
         if (docked) {
             this.dockItem(item);
+        }
+    },
+
+    onAfterDockedChange:function(item, docked, oldDocked) {
+        var parent = item.getParent();
+        if(parent && docked) {
+            parent.getLayout().onAfterItemDockedChange(item, docked, oldDocked);
         }
     },
 
@@ -25084,6 +25110,14 @@ Ext.define('Ext.fx.layout.card.Abstract', {
             layout.unBefore('activeitemchange', 'onActiveItemChange', this);
         }
         this.setLayout(null);
+
+        if (this.observableId) {
+            this.fireEvent('destroy', this);
+            this.clearListeners();
+            this.clearManagedListeners();
+        }
+
+//        this.callSuper(arguments);
     }
 });
 
@@ -26548,9 +26582,6 @@ Ext.define('Ext.fx.layout.Card', {
                 if (type != 'fade') {
                     type = 'scroll';
                 }
-            }
-            else if (type === 'slide' && Ext.browser.is.ChromeMobile) {
-                type = 'scroll';
             }
 
             defaultClass = Ext.ClassManager.getByAlias('fx.layout.card.' + type);
@@ -29265,6 +29296,10 @@ Ext.define('Ext.scroll.Scroller', {
      * @chainable
      */
     scrollTo: function(x, y, animation) {
+        if (this.isDestroyed) {
+            return this;
+        }
+
 
         var translatable = this.getTranslatable(),
             position = this.position,
@@ -29300,7 +29335,7 @@ Ext.define('Ext.scroll.Scroller', {
         }
 
         if (positionChanged) {
-            if (animation !== undefined) {
+            if (animation !== undefined && animation !== false) {
                 translatable.translateAnimated(translationX, translationY, animation);
             }
             else {
@@ -29662,13 +29697,9 @@ Ext.define('Ext.scroll.Scroller', {
 
             mod = (position - snapOffset) % snapSize;
 
-            if (mod !== 0) {
+            if ((mod !== 0) && (position !== maxPosition)) {
                 if (Math.abs(mod) > snapSize / 2) {
-                    snapPosition = position + ((mod > 0) ? snapSize - mod : mod - snapSize);
-
-                    if (snapPosition > maxPosition) {
-                        snapPosition = position - mod;
-                    }
+                    snapPosition = Math.min(maxPosition, position + ((mod > 0) ? snapSize - mod : mod - snapSize));
                 }
                 else {
                     snapPosition = position - mod;
@@ -30166,10 +30197,10 @@ Ext.define('Ext.scroll.Indicator', {
     alternateClassName: 'Ext.util.Indicator',
 
     constructor: function(config) {
-        if (Ext.os.is.Android2 || Ext.os.is.Android3 || Ext.browser.is.ChromeMobile) {
+        if (Ext.os.is.Android2 || Ext.os.is.Android3) {
             return new Ext.scroll.indicator.ScrollPosition(config);
         }
-        else if (Ext.os.is.iOS) {
+        else if (Ext.os.is.iOS || Ext.browser.is.ChromeMobile) {
             return new Ext.scroll.indicator.CssTransform(config);
         }
         else if (Ext.os.is.Android4) {
@@ -31087,15 +31118,16 @@ Ext.define('Ext.Container', {
      * @param currentMask
      * @return {Object}
      */
-    applyMasked: function(masked, currentMask) {
-        var isVisible = true;
+    applyMasked: function(masked) {
+        var isVisible = true,
+            currentMask;
 
         if (masked === false) {
             masked = true;
             isVisible = false;
         }
 
-        currentMask = Ext.factory(masked, Ext.Mask, currentMask);
+        currentMask = Ext.factory(masked, Ext.Mask, this.getMasked());
 
         if (currentMask) {
             this.add(currentMask);
@@ -31720,11 +31752,12 @@ Ext.define('Ext.Container', {
 
             items.removeAt(currentIndex);
         }
-        else {
-            item.setParent(me);
-        }
 
         items.insert(index, item);
+
+        if (currentIndex === -1) {
+            item.setParent(me);
+        }
 
         if (isInnerItem) {
             me.insertInner(item, index);
@@ -32020,7 +32053,15 @@ Ext.define('Ext.Container', {
      * @private
      */
     applyScrollable: function(config) {
-        if (config && !config.isObservable) {
+        if (typeof config === 'boolean') {
+            //<debug warn>
+            if (config === false && !this.heightLayoutSized) {
+                Ext.Logger.warn("This container is set to scrollable: false but has no specified height. " +
+                    "You may need to set the container to scrollable: null or provide a height.", this);
+            }
+            //</debug>
+            this.getScrollableBehavior().setConfig({disabled: !config});
+        } else if (config && !config.isObservable) {
             this.getScrollableBehavior().setConfig(config);
         }
         return config;
@@ -32900,6 +32941,12 @@ Ext.define('Ext.Sheet', {
  * - **decline** - shaded using the {@link Global_CSS#$alert-color $alert-color} (red by default)
  * - **confirm** - shaded using the {@link Global_CSS#$confirm-color $confirm-color} (green by default)
  *
+ * You can also append `-round` to each of the last three UI's to give it a round shape:
+ *
+ * - **action-round**
+ * - **decline-round**
+ * - **confirm-round**
+ *
  * And setting them is very simple:
  *
  *     var uiButton = Ext.create('Ext.Button', {
@@ -33168,10 +33215,16 @@ Ext.define('Ext.Button', {
          * - `'back'` - a back button.
          * - `'forward'` - a forward button.
          * - `'round'` - a round button.
+         * - `'plain'`
          * - `'action'` - shaded using the {@link Global_CSS#$active-color $active-color} (dark blue by default).
          * - `'decline'` - shaded using the {@link Global_CSS#$alert-color $alert-color} (red by default).
          * - `'confirm'` - shaded using the {@link Global_CSS#$confirm-color $confirm-color} (green by default).
-         * - `'plain'`
+         *
+         * You can also append `-round` to each of the last three UI's to give it a round shape:
+         *
+         * - **action-round**
+         * - **decline-round**
+         * - **confirm-round**
          *
          * @accessor
          */
@@ -33314,11 +33367,12 @@ Ext.define('Ext.Button', {
 
         if (icon) {
             me.showIconElement();
-            element.setStyle('background-image', icon ? 'url(' + icon + ')' : '');
+            element.setStyle('background-image', 'url(' + icon + ')');
             me.refreshIconAlign();
             me.refreshIconMask();
         }
         else {
+        	element.setStyle('background-image', '');
             me.hideIconElement();
             me.setIconAlign(false);
         }
@@ -33338,6 +33392,7 @@ Ext.define('Ext.Button', {
             me.refreshIconMask();
         }
         else {
+			element.removeCls(oldIconCls);
             me.hideIconElement();
             me.setIconAlign(false);
         }
@@ -37363,7 +37418,7 @@ Ext.define('Ext.Map', {
     updateUseCurrentLocation: function(useCurrentLocation) {
         this.setGeo(useCurrentLocation);
         if (!useCurrentLocation) {
-            this.renderMap();
+            this.setMapCenter();
         }
     },
 
@@ -38075,9 +38130,9 @@ Ext.define('Ext.field.Input', {
         useMask: 'auto',
 
         /**
-         * @cfg {String} type The type attribute for input fields -- e.g. radio, text, password, file (defaults
-         * to 'text'). The types 'file' and 'password' must be used to render those field types currently -- there are
-         * no separate Ext components for those.
+         * @cfg {String} type The type attribute for input fields -- e.g. radio, text, password.
+         *
+         * If you want to use a `file` input, please use the {@link Ext.field.File} component instead.
          * @accessor
          */
         type: 'text',
@@ -39285,7 +39340,8 @@ Ext.define('Ext.field.Text', {
         readOnly: null,
 
         /**
-         * @cfg {Object} component The inner component for this field, which defaults to an input text.
+         * @cfg {Object} component The inner component for this field, which defaults to an input text. You are also
+         * able to use the {@link Ext.field.File} component by using the `file` xtype.
          * @accessor
          */
         component: {
@@ -39728,7 +39784,7 @@ Ext.define('Ext.MessageBox', {
          * @cfg
          * @inheritdoc
          */
-        ui: 'dark',
+        ui: (Ext.os.is.BlackBerry && Ext.os.version.getMajor() === 10) ? 'plain' : 'dark',
 
         /**
          * @cfg
@@ -39911,7 +39967,7 @@ Ext.define('Ext.MessageBox', {
 
         Ext.applyIf(config, {
             docked: 'top',
-            minHeight: '1.3em',
+            minHeight: (Ext.os.is.BlackBerry && Ext.os.version.getMajor() === 10) ? '2.1em' : '1.3em',
             cls   : this.getBaseCls() + '-title'
         });
 
@@ -39935,8 +39991,13 @@ Ext.define('Ext.MessageBox', {
     updateButtons: function(newButtons) {
         var me = this;
 
+        // If there are no new buttons or it is an empty array, set newButtons
+        // to false
+        newButtons = (!newButtons || newButtons.length === 0) ? false : newButtons;
+
         if (newButtons) {
             if (me.buttonsToolbar) {
+                me.buttonsToolbar.show();
                 me.buttonsToolbar.removeAll();
                 me.buttonsToolbar.setItems(newButtons);
             } else {
@@ -39954,6 +40015,8 @@ Ext.define('Ext.MessageBox', {
 
                 me.add(me.buttonsToolbar);
             }
+        } else if (me.buttonsToolbar) {
+            me.buttonsToolbar.hide();
         }
     },
 
@@ -40519,7 +40582,8 @@ Ext.define('Ext.SegmentedButton', {
         me.onAfter({
             delegate: '> button',
             scope   : me,
-            hiddenchange: 'onButtonHiddenChange'
+            hide: 'onButtonHiddenChange',
+            show: 'onButtonHiddenChange'
         });
     },
 
@@ -41463,6 +41527,10 @@ Ext.define('Ext.TitleBar', {
     },
 
     refreshTitlePosition: function() {
+        if (this.isDestroyed) {
+            return;
+        }
+
         var titleElement = this.titleComponent.renderElement;
 
         titleElement.setWidth(null);
@@ -42531,11 +42599,13 @@ Ext.define('Ext.app.History', {
             window.addEventListener('hashchange', Ext.bind(this.detectStateChange, this));
         }
         else {
-            this.setToken(window.location.hash.substr(1));
             setInterval(Ext.bind(this.detectStateChange, this), 100);
         }
 
         this.initConfig(config);
+        if (config && Ext.isEmpty(config.token)) { 
+            this.setToken(window.location.hash.substr(1)); 
+        }
     },
 
     /**
@@ -42567,12 +42637,16 @@ Ext.define('Ext.app.History', {
      */
     back: function() {
         var actions = this.getActions(),
-            previousAction = actions[actions.length - 2],
-            app = previousAction.getController().getApplication();
+            previousAction = actions[actions.length - 2];
 
-        actions.pop();
+        if (previousAction) {
+            actions.pop();
 
-        app.redirectTo(previousAction.getUrl());
+            previousAction.getController().getApplication().redirectTo(previousAction.getUrl());
+        }
+        else {
+            actions[actions.length - 1].getController().getApplication().redirectTo('');
+        }
     },
 
     /**
@@ -43990,7 +44064,7 @@ Ext.define('Ext.app.Application', {
 
 /**
  * A class to replicate the behavior of the Contextual menu in BlackBerry 10.
- * 
+ *
  * More information: http://docs.blackberry.com/en/developers/deliverables/41577/contextual_menus.jsp
  *
  *     var menu = Ext.create('Ext.bb.CrossCut', {
@@ -44065,6 +44139,11 @@ Ext.define('Ext.bb.CrossCut', {
         /**
          * @hide
          */
+        scrollable: true,
+
+        /**
+         * @hide
+         */
         layout: {
             type: 'vbox',
             pack: 'middle'
@@ -44081,7 +44160,7 @@ Ext.define('Ext.bb.CrossCut', {
         showAnimation: {
             preserveEndState: true,
             to: {
-                width: 275
+                width: 250
             }
         },
 
@@ -44093,10 +44172,6 @@ Ext.define('Ext.bb.CrossCut', {
             to: {
                 width: 68
             }
-        },
-
-        defaults: {
-            baseCls: 'bb-crosscut-item'
         }
     }
 });
@@ -47197,7 +47272,7 @@ Ext.define('Ext.dataview.component.DataItem', {
             component = this[componentName]();
             if (component) {
                 for (setterName in setterMap) {
-                    if (data && component[setterName] && data[setterMap[setterName]]) {
+                    if (data && component[setterName] && data[setterMap[setterName]] !== undefined && data[setterMap[setterName]] !== null) {
                         component[setterName](data[setterMap[setterName]]);
                     }
                 }
@@ -47989,7 +48064,9 @@ Ext.define('Ext.mixin.Selectable', {
             }
             else {
                 oldStore.un(bindEvents);
-                newStore.un('clear', 'onSelectionStoreClear', this);
+                if(newStore) {
+                    newStore.un('clear', 'onSelectionStoreClear', this);
+                }
             }
         }
 
@@ -48681,6 +48758,12 @@ Ext.define('Ext.dataview.DataView', {
         store: null,
 
         /**
+         * @cfg {Object[]} data
+         * @inheritdoc
+         */
+        data: null,
+
+        /**
          * @cfg baseCls
          * @inheritdoc
          */
@@ -49119,7 +49202,8 @@ Ext.define('Ext.dataview.DataView', {
         var store = this.getStore();
         if (!store) {
             this.setStore(Ext.create('Ext.data.Store', {
-                data: data
+                data: data,
+                autoDestroy: true
             }));
         } else {
             store.add(data);
@@ -49337,10 +49421,20 @@ Ext.define('Ext.dataview.DataView', {
             item = items[i];
             container.updateListItem(records[i], item);
         }
+
+        if (this.hasSelection()) {
+            var selection = this.getSelection(),
+                selectionLn = this.getSelectionCount(),
+                record;
+            for (i = 0; i < selectionLn; i++) {
+                record = selection[i];
+                this.doItemSelect(this, record);
+            }
+        }
     },
 
     showEmptyText: function() {
-        if (this.getEmptyText() && (this.hasLoadedStore || !this.getDeferEmptyText()) ) {
+        if (this.getEmptyText() && (this.hasLoadedStore || !this.getDeferEmptyText())) {
             this.emptyTextCmp.show();
         }
     },
@@ -60881,6 +60975,11 @@ Ext.define('Ext.data.proxy.Direct', {
 
     config: {
         /**
+         * @cfg url
+         * @hide
+         */
+         
+        /**
          * @cfg {String/String[]} paramOrder
          * Defaults to undefined. A list of params to be executed server side.  Specify the params in the order in
          * which they must be executed on the server-side as either (1) an Array of String values, or (2) a String
@@ -61826,7 +61925,7 @@ Ext.define('Ext.data.NodeInterface', {
                     // if passed an array or multiple args do them one by one
                     if (Ext.isArray(node)) {
                         for (i = 0, ln = node.length; i < ln; i++) {
-                            me.appendChild(node[i]);
+                            me.appendChild(node[i], suppressEvents, suppressNodeUpdate);
                         }
                     } else {
                         // Make sure it is a record
@@ -64581,9 +64680,10 @@ Ext.define('Ext.data.proxy.Rest', {
 /**
  * SQL proxy.
  */
-Ext.define('Ext.data.proxy.SQL', {
+Ext.define('Ext.data.proxy.Sql', {
     alias: 'proxy.sql',
     extend: 'Ext.data.proxy.Client',
+    alternateClassName: 'Ext.data.proxy.SQL',
 
     config: {
         /**
@@ -64596,9 +64696,15 @@ Ext.define('Ext.data.proxy.SQL', {
          * @hide
          */
         writer: null,
-
+        /**
+         * @cfg {String} table
+         * Optional Table name to use if not provided ModelName will be used
+         */
         table: null,
-
+        /**
+         * @cfg {String} database
+         * Database name to access tables from
+         */
         database: 'Sencha',
 
         columns: '',
@@ -64858,7 +64964,7 @@ Ext.define('Ext.data.proxy.SQL', {
                 }
             }
 
-            ln = params.sorters.length;
+            ln = params.sorters && params.sorters.length;
             if (ln) {
                 for (i = 0; i < ln; i++) {
                     sorter = params.sorters[i];
@@ -65974,6 +66080,11 @@ Ext.define('Ext.dataview.component.ListItem', {
          * @param {Object} newData The new data.
          */
         me.fireEvent('updatedata', me, data);
+    },
+
+    destroy: function() {
+        Ext.destroy(this.getHeader());
+        this.callParent(arguments);
     }
 });
 
@@ -66155,7 +66266,7 @@ Ext.define('Ext.util.PositionMap', {
  *         ]
  *     });
  *
- * A more advanced example showing a list of people groped by last name:
+ * A more advanced example showing a list of people grouped by last name:
  *
  *     @example miniphone preview
  *     Ext.define('Contact', {
@@ -66197,6 +66308,55 @@ Ext.define('Ext.util.PositionMap', {
  *        itemTpl: '<div class="contact">{firstName} <strong>{lastName}</strong></div>',
  *        store: store,
  *        grouped: true
+ *     });
+ *
+ * If you want to dock items to the bottom or top of a List, you can use the scrollDock configuration on child items in this List. The following example adds a button to the bottom of the List.
+ *
+ *     @example phone preview
+ *     Ext.define('Contact', {
+ *         extend: 'Ext.data.Model',
+ *         config: {
+ *             fields: ['firstName', 'lastName']
+ *         }
+ *     });
+ *
+ *     var store = Ext.create('Ext.data.Store', {
+ *        model: 'Contact',
+ *        sorters: 'lastName',
+ *
+ *        grouper: {
+ *            groupFn: function(record) {
+ *                return record.get('lastName')[0];
+ *            }
+ *        },
+ *
+ *        data: [
+ *            { firstName: 'Tommy',   lastName: 'Maintz'  },
+ *            { firstName: 'Rob',     lastName: 'Dougan'  },
+ *            { firstName: 'Ed',      lastName: 'Spencer' },
+ *            { firstName: 'Jamie',   lastName: 'Avins'   },
+ *            { firstName: 'Aaron',   lastName: 'Conran'  },
+ *            { firstName: 'Dave',    lastName: 'Kaneda'  },
+ *            { firstName: 'Jacky',   lastName: 'Nguyen'  },
+ *            { firstName: 'Abraham', lastName: 'Elias'   },
+ *            { firstName: 'Jay',     lastName: 'Robinson'},
+ *            { firstName: 'Nigel',   lastName: 'White'   },
+ *            { firstName: 'Don',     lastName: 'Griffin' },
+ *            { firstName: 'Nico',    lastName: 'Ferrero' },
+ *            { firstName: 'Jason',   lastName: 'Johnston'}
+ *        ]
+ *     });
+ *
+ *     Ext.create('Ext.List', {
+ *         fullscreen: true,
+ *         itemTpl: '<div class="contact">{firstName} <strong>{lastName}</strong></div>',
+ *         store: store,
+ *         items: [{
+ *             xtype: 'button',
+ *             scrollDock: 'bottom',
+ *             docked: 'bottom',
+ *             text: 'Load More...'
+ *         }]
  *     });
  */
 Ext.define('Ext.dataview.List', {
@@ -66374,9 +66534,7 @@ Ext.define('Ext.dataview.List', {
          * Note that if you have {@link #variableHeights} set to false, this configuration option has
          * no effect.
          */
-        refreshHeightOnUpdate: true,
-
-        scrollable: false
+        refreshHeightOnUpdate: true
     },
 
     constructor: function(config) {
@@ -66563,6 +66721,22 @@ Ext.define('Ext.dataview.List', {
         }
     },
 
+    updateItemTpl: function(newTpl, oldTpl) {
+        var listItems = this.listItems,
+            ln = listItems.length || 0,
+            store = this.getStore(),
+            i, listItem;
+
+        for (i = 0; i < ln; i++) {
+            listItem = listItems[i];
+            listItem.setTpl(newTpl);
+        }
+
+        if (store && store.getCount()) {
+            this.doRefresh();
+        }
+    },
+
     updateScrollerSize: function() {
         var me = this,
             totalHeight = me.getItemMap().getTotalHeight(),
@@ -66621,7 +66795,7 @@ Ext.define('Ext.dataview.List', {
             currentTopIndex = me.topItemIndex,
             itemMap = me.getItemMap(),
             store = me.getStore(),
-            storeCount = store.getCount(),
+            storeCount = store && store.getCount(),
             info = me.getListItemInfo(),
             grouped = me.getGrouped(),
             storeGroups = me.groups,
@@ -66731,6 +66905,11 @@ Ext.define('Ext.dataview.List', {
             item.dataIndex = null;
             if (info.store) {
                 me.updateListItem(item, i + me.topItemIndex, info);
+            }
+            else {
+                item.setRecord(null);
+                item.translate(0, -10000);
+                item._list_hidden = true;
             }
         }
 
@@ -66969,11 +67148,9 @@ Ext.define('Ext.dataview.List', {
     },
 
     updateItemHeights: function() {
-        if (!this.isPainted()) {
+        if (!this.isPainted() && !this.pendingHeightUpdate) {
             this.pendingHeightUpdate = true;
-            if (!this.pendingHeightUpdate) {
-                this.on('painted', this.updateItemHeights, this, {single: true});
-            }
+            this.on('painted', this.updateItemHeights, this, {single: true});
             return;
         }
 
@@ -67031,7 +67208,6 @@ Ext.define('Ext.dataview.List', {
         }
 
         this.updatedItems.length = 0;
-
     },
 
     /**
@@ -67055,11 +67231,10 @@ Ext.define('Ext.dataview.List', {
     /**
      * Returns an index for the specified item.
      * @param {Number} item The item to locate.
-     * @return {Number} Index for the specified item.
+     * @return {Number} Index of the record bound to the specified item.
      */
     getItemIndex: function(item) {
-        var index = item.dataIndex;
-        return (index === -1) ? index : this.indexOffset + index;
+        return item.dataIndex;
     },
 
     /**
@@ -67093,14 +67268,21 @@ Ext.define('Ext.dataview.List', {
 
         // This will refresh the items on the screen with the new data
         if (me.listItems.length) {
+            if (me.getScrollToTopOnRefresh()) {
+                me.topItemIndex = 0;
+                me.topItemPosition = 0;
+                scroller.position.y = 0;
+            }
             me.setItemsCount(me.listItems.length);
             if (painted) {
                 me.refreshScroller(scroller);
+            } else if (!me.pendingRefreshScroller) {
+                me.pendingRefreshScroller = true;
+                me.on('painted', function() {
+                    me.pendingRefreshScroller = false;
+                    me.refreshScroller(scroller);
+                }, this, {single: true});
             }
-        }
-
-        if (painted && this.getScrollToTopOnRefresh() && scroller && list) {
-            scroller.scrollToTop();
         }
 
         // No items, hide all the items from the collection.
@@ -67163,14 +67345,16 @@ Ext.define('Ext.dataview.List', {
         else {
             if (newIndex >= me.topItemIndex && newIndex < me.topItemIndex + me.listItems.length) {
                 item = me.getItemAt(newIndex);
-                me.doUpdateListItem(item, newIndex, me.getListItemInfo());
+                if(item) {
+                    me.doUpdateListItem(item, newIndex, me.getListItemInfo());
 
-                // Bypassing setter because sometimes we pass the same record (different data)
-                //me.updateListItem(me.getItemAt(newIndex), newIndex, me.getListItemInfo());
-                if (me.getVariableHeights() && me.getRefreshHeightOnUpdate()) {
-                    me.updatedItems.push(item);
-                    me.updateItemHeights();
-                    me.refreshScroller(scroller);
+                    // Bypassing setter because sometimes we pass the same record (different data)
+                    //me.updateListItem(me.getItemAt(newIndex), newIndex, me.getListItemInfo());
+                    if (me.getVariableHeights() && me.getRefreshHeightOnUpdate()) {
+                        me.updatedItems.push(item);
+                        me.updateItemHeights();
+                        me.refreshScroller(scroller);
+                    }
                 }
             }
         }
@@ -67357,7 +67541,7 @@ Ext.define('Ext.dataview.List', {
     },
 
     destroy: function() {
-        Ext.destroy(this.getIndexBar(), this.indexBarElement, this.header);
+        Ext.destroy(this.getIndexBar(), this.indexBarElement, this.header, this.scrollDockItems.top, this.scrollDockItems.bottom);
         if (this.intervalId) {
             cancelAnimationFrame(this.intervalId);
             delete this.intervalId;
@@ -67456,7 +67640,7 @@ Ext.define('Ext.dataview.NestedList', {
     extend: 'Ext.Container',
     xtype: 'nestedlist',
     requires: [
-        'Ext.List',
+        'Ext.dataview.List',
         'Ext.TitleBar',
         'Ext.Button',
         'Ext.XTemplate',
@@ -67605,6 +67789,24 @@ Ext.define('Ext.dataview.NestedList', {
          * configuration used to create each nested list.
          */
         listConfig: null,
+
+        /**
+         * @cfg {Boolean} variableHeights
+         * Whether or not the lists contain items with variable heights. If you want to force the
+         * items in the list to have a fixed height, set the {@link #itemHeight} configuration.
+         * If you also set variableHeights to false, the scrolling performance of the list will be
+         * improved.
+         */
+        variableHeights: false,
+
+        /**
+         * @cfg {Number} itemHeight
+         * This allows you to set the default item height and is used to roughly calculate the amount
+         * of items needed to fill the list. By default items are around 50px high. If you set this
+         * configuration in combination with setting the {@link #variableHeights} to false you
+         * can improve the scrolling speed
+         */
+        itemHeight: 47,
 
         // @private
         lastNode: null,
@@ -68039,18 +68241,20 @@ Ext.define('Ext.dataview.NestedList', {
             me.setActiveItem(list);
         }
         else {
+            if (animation) {
+                animation.setReverse(reverse);
+            }
+
             if (firstList && secondList) {
                 //firstList and secondList have both been created
                 activeItem = me.getActiveItem();
 
                 me.setLastActiveList(activeItem);
                 list = (activeItem == firstList) ? secondList : firstList;
+
                 list.getStore().setNode(node);
                 node.expand();
 
-                if (animation) {
-                    animation.setReverse(reverse);
-                }
                 me.setActiveItem(list);
                 list.deselectAll();
             }
@@ -68177,7 +68381,8 @@ Ext.define('Ext.dataview.NestedList', {
             store: nodeStore,
             onItemDisclosure: me.getOnItemDisclosure(),
             allowDeselect: me.getAllowDeselect(),
-            variableHeights: false,
+            variableHeights: me.getVariableHeights(),
+            itemHeight: me.getItemHeight(),
             listeners: [
                 { event: 'itemdoubletap', fn: 'onItemDoubleTap', scope: me },
                 { event: 'itemtap', fn: 'onItemInteraction', scope: me, order: 'before'},
@@ -68328,2446 +68533,6 @@ Ext.define('Ext.dataview.element.List', {
     destroy: function() {
         this.doRemoveHeaders();
         this.callParent();
-    }
-});
-
-/**
- * @private
- *
- * This object handles communication between the WebView and Sencha's native shell.
- * Currently it has two primary responsibilities:
- *
- * 1. Maintaining unique string ids for callback functions, together with their scope objects
- * 2. Serializing given object data into HTTP GET request parameters
- *
- * As an example, to capture a photo from the device's camera, we use `Ext.device.Camera.capture()` like:
- *
- *     Ext.device.Camera.capture(
- *         function(dataUri){
- *             // Do something with the base64-encoded `dataUri` string
- *         },
- *         function(errorMessage) {
- *
- *         },
- *         callbackScope,
- *         {
- *             quality: 75,
- *             width: 500,
- *             height: 500
- *         }
- *     );
- *
- * Internally, `Ext.device.Communicator.send()` will then be invoked with the following argument:
- *
- *     Ext.device.Communicator.send({
- *         command: 'Camera#capture',
- *         callbacks: {
- *             onSuccess: function() {
- *                 // ...
- *             },
- *             onError: function() {
- *                 // ...
- *             }
- *         },
- *         scope: callbackScope,
- *         quality: 75,
- *         width: 500,
- *         height: 500
- *     });
- *
- * Which will then be transformed into a HTTP GET request, sent to native shell's local
- * HTTP server with the following parameters:
- *
- *     ?quality=75&width=500&height=500&command=Camera%23capture&onSuccess=3&onError=5
- *
- * Notice that `onSuccess` and `onError` have been converted into string ids (`3` and `5`
- * respectively) and maintained by `Ext.device.Communicator`.
- *
- * Whenever the requested operation finishes, `Ext.device.Communicator.invoke()` simply needs
- * to be executed from the native shell with the corresponding ids given before. For example:
- *
- *     Ext.device.Communicator.invoke('3', ['DATA_URI_OF_THE_CAPTURED_IMAGE_HERE']);
- *
- * will invoke the original `onSuccess` callback under the given scope. (`callbackScope`), with
- * the first argument of 'DATA_URI_OF_THE_CAPTURED_IMAGE_HERE'
- *
- * Note that `Ext.device.Communicator` maintains the uniqueness of each function callback and
- * its scope object. If subsequent calls to `Ext.device.Communicator.send()` have the same
- * callback references, the same old ids will simply be reused, which guarantee the best possible
- * performance for a large amount of repetitive calls.
- */
-Ext.define('Ext.device.communicator.Default', {
-
-    SERVER_URL: 'http://localhost:3000', // Change this to the correct server URL
-
-    callbackDataMap: {},
-
-    callbackIdMap: {},
-
-    idSeed: 0,
-
-    globalScopeId: '0',
-
-    generateId: function() {
-        return String(++this.idSeed);
-    },
-
-    getId: function(object) {
-        var id = object.$callbackId;
-
-        if (!id) {
-            object.$callbackId = id = this.generateId();
-        }
-
-        return id;
-    },
-
-    getCallbackId: function(callback, scope) {
-        var idMap = this.callbackIdMap,
-            dataMap = this.callbackDataMap,
-            id, scopeId, callbackId, data;
-
-        if (!scope) {
-            scopeId = this.globalScopeId;
-        }
-        else if (scope.isIdentifiable) {
-            scopeId = scope.getId();
-        }
-        else {
-            scopeId = this.getId(scope);
-        }
-
-        callbackId = this.getId(callback);
-
-        if (!idMap[scopeId]) {
-            idMap[scopeId] = {};
-        }
-
-        if (!idMap[scopeId][callbackId]) {
-            id = this.generateId();
-            data = {
-                callback: callback,
-                scope: scope
-            };
-
-            idMap[scopeId][callbackId] = id;
-            dataMap[id] = data;
-        }
-
-        return idMap[scopeId][callbackId];
-    },
-
-    getCallbackData: function(id) {
-        return this.callbackDataMap[id];
-    },
-
-    invoke: function(id, args) {
-        var data = this.getCallbackData(id);
-
-        data.callback.apply(data.scope, args);
-    },
-
-    send: function(args) {
-        var callbacks, scope, name, callback;
-
-        if (!args) {
-            args = {};
-        }
-        else if (args.callbacks) {
-            callbacks = args.callbacks;
-            scope = args.scope;
-
-            delete args.callbacks;
-            delete args.scope;
-
-            for (name in callbacks) {
-                if (callbacks.hasOwnProperty(name)) {
-                    callback = callbacks[name];
-
-                    if (typeof callback == 'function') {
-                        args[name] = this.getCallbackId(callback, scope);
-                    }
-                }
-            }
-        }
-
-        this.doSend(args);
-    },
-
-    doSend: function(args) {
-        var xhr = new XMLHttpRequest();
-
-        xhr.open('GET', this.SERVER_URL + '?' + Ext.Object.toQueryString(args) + '&_dc=' + new Date().getTime(), false);
-
-        // wrap the request in a try/catch block so we can check if any errors are thrown and attempt to call any
-        // failure/callback functions if defined
-        try {
-            xhr.send(null);
-        } catch(e) {
-            if (args.failure) {
-                this.invoke(args.failure);
-            } else if (args.callback) {
-                this.invoke(args.callback);
-            }
-        }
-    }
-});
-
-
-/**
- * @private
- */
-Ext.define('Ext.device.communicator.Android', {
-    extend: 'Ext.device.communicator.Default',
-
-    doSend: function(args) {
-        window.Sencha.action(JSON.stringify(args));
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.Communicator', {
-    requires: [
-        'Ext.device.communicator.Default',
-        'Ext.device.communicator.Android'
-    ],
-
-    singleton: true,
-
-    constructor: function() {
-        if (Ext.os.is.Android) {
-            return new Ext.device.communicator.Android();
-        }
-
-        return new Ext.device.communicator.Default();
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.camera.Abstract', {
-
-    source: {
-        library: 0,
-        camera: 1,
-        album: 2
-    },
-
-    destination: {
-        data: 0, // Returns base64-encoded string
-        file: 1  // Returns file's URI
-    },
-
-    encoding: {
-        jpeg: 0,
-        jpg: 0,
-        png: 1
-    },
-
-    /**
-     * Allows you to capture a photo.
-     *
-     * @param {Object} options
-     * The options to use when taking a photo.
-     *
-     * @param {Function} options.success
-     * The success callback which is called when the photo has been taken.
-     *
-     * @param {String} options.success.image
-     * The image which was just taken, either a base64 encoded string or a URI depending on which
-     * option you chose (destination).
-     *
-     * @param {Function} options.failure
-     * The function which is called when something goes wrong.
-     *
-     * @param {Object} scope
-     * The scope in which to call the `success` and `failure` functions, if specified.
-     *
-     * @param {Number} options.quality
-     * The quality of the image which is returned in the callback. This should be a percentage.
-     *
-     * @param {String} options.source
-     * The source of where the image should be taken. Available options are:
-     *
-     * - **album** - prompts the user to choose an image from an album
-     * - **camera** - prompts the user to take a new photo
-     * - **library** - prompts the user to choose an image from the library
-     *
-     * @param {String} destination
-     * The destination of the image which is returned. Available options are:
-     *
-     * - **data** - returns a base64 encoded string
-     * - **file** - returns the file's URI
-     *
-     * @param {String} encoding
-     * The encoding of the returned image. Available options are:
-     *
-     * - **jpg**
-     * - **png**
-     *
-     * @param {Number} width
-     * The width of the image to return
-     *
-     * @param {Number} height
-     * The height of the image to return
-     */
-    capture: Ext.emptyFn
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.camera.PhoneGap', {
-
-    extend: 'Ext.device.camera.Abstract',
-
-    capture: function(args) {
-        var onSuccess = args.success,
-            onError = args.failure,
-            scope = args.scope,
-            sources = this.source,
-            destinations = this.destination,
-            encodings = this.encoding,
-            source = args.source,
-            destination = args.destination,
-            encoding = args.encoding,
-            options = {};
-
-        if (scope) {
-            onSuccess = Ext.Function.bind(onSuccess, scope);
-            onError = Ext.Function.bind(onError, scope);
-        }
-
-        if (source !== undefined) {
-            options.sourceType = sources.hasOwnProperty(source) ? sources[source] : source;
-        }
-
-        if (destination !== undefined) {
-            options.destinationType = destinations.hasOwnProperty(destination) ? destinations[destination] : destination;
-        }
-
-        if (encoding !== undefined) {
-            options.encodingType = encodings.hasOwnProperty(encoding) ? encodings[encoding] : encoding;
-        }
-
-        if ('quality' in args) {
-            options.quality = args.quality;
-        }
-
-        if ('width' in args) {
-            options.targetWidth = args.width;
-        }
-
-        if ('height' in args) {
-            options.targetHeight = args.height;
-        }
-
-        try {
-            navigator.camera.getPicture(onSuccess, onError, options);
-        }
-        catch (e) {
-            alert(e);
-        }
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.camera.Sencha', {
-
-    extend: 'Ext.device.camera.Abstract',
-
-    requires: [
-        'Ext.device.Communicator'
-    ],
-
-    capture: function(options) {
-        var sources = this.source,
-            destinations = this.destination,
-            encodings = this.encoding,
-            source = options.source,
-            destination = options.destination,
-            encoding = options.encoding;
-
-        if (sources.hasOwnProperty(source)) {
-            source = sources[source];
-        }
-
-        if (destinations.hasOwnProperty(destination)) {
-            destination = destinations[destination];
-        }
-
-        if (encodings.hasOwnProperty(encoding)) {
-            encoding = encodings[encoding];
-        }
-
-        Ext.device.Communicator.send({
-            command: 'Camera#capture',
-            callbacks: {
-                success: options.success,
-                failure: options.failure
-            },
-            scope: options.scope,
-            quality: options.quality,
-            width: options.width,
-            height: options.height,
-            source: source,
-            destination: destination,
-            encoding: encoding
-        });
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.camera.Simulator', {
-    extend: 'Ext.device.camera.Abstract',
-
-    config: {
-        samples: [
-            {
-                success: 'http://www.sencha.com/img/sencha-large.png'
-            }
-        ]
-    },
-
-    constructor: function(config) {
-        this.initConfig(config);
-    },
-
-    updateSamples: function(samples) {
-        this.sampleIndex = 0;
-    },
-
-    capture: function(options) {
-        var index = this.sampleIndex,
-            samples = this.getSamples(),
-            samplesCount = samples.length,
-            sample = samples[index],
-            scope = options.scope,
-            success = options.success,
-            failure = options.failure;
-
-        if ('success' in sample) {
-            if (success) {
-                success.call(scope, sample.success);
-            }
-        }
-        else {
-            if (failure) {
-                failure.call(scope, sample.failure);
-            }
-        }
-
-        if (++index > samplesCount - 1) {
-            index = 0;
-        }
-
-        this.sampleIndex = index;
-    }
-});
-
-/**
- * This class allows you to use native APIs to take photos using the device camera.
- *
- * When this singleton is instantiated, it will automatically select the correct implementation depending on the
- * current device:
- *
- * - Sencha Packager
- * - PhoneGap
- * - Simulator
- *
- * Both the Sencha Packager and PhoneGap implementations will use the native camera functionality to take or select
- * a photo. The Simulator implementation will simply return fake images.
- *
- * ## Example
- *
- * You can use the {@link Ext.device.Camera#capture} function to take a photo:
- *
- *     Ext.device.Camera.capture({
- *         success: function(image) {
- *             imageView.setSrc(image);
- *         },
- *         quality: 75,
- *         width: 200,
- *         height: 200,
- *         destination: 'data'
- *     });
- *
- * See the documentation for {@link Ext.device.Camera#capture} all available configurations.
- *
- * @mixins Ext.device.camera.Abstract
- *
- * @aside guide native_apis
- */
-Ext.define('Ext.device.Camera', {
-    singleton: true,
-
-    requires: [
-        'Ext.device.Communicator',
-        'Ext.device.camera.PhoneGap',
-        'Ext.device.camera.Sencha',
-        'Ext.device.camera.Simulator'
-    ],
-
-    constructor: function() {
-        var browserEnv = Ext.browser.is;
-
-        if (browserEnv.WebView) {
-            if (browserEnv.PhoneGap) {
-                return Ext.create('Ext.device.camera.PhoneGap');
-            }
-            else {
-                return Ext.create('Ext.device.camera.Sencha');
-            }
-        }
-        else {
-            return Ext.create('Ext.device.camera.Simulator');
-        }
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.connection.Abstract', {
-    extend: 'Ext.Evented',
-
-    config: {
-        online: false,
-        type: null
-    },
-
-    /**
-     * @property {String} UNKNOWN
-     * Text label for a connection type.
-     */
-    UNKNOWN: 'Unknown connection',
-
-    /**
-     * @property {String} ETHERNET
-     * Text label for a connection type.
-     */
-    ETHERNET: 'Ethernet connection',
-
-    /**
-     * @property {String} WIFI
-     * Text label for a connection type.
-     */
-    WIFI: 'WiFi connection',
-
-    /**
-     * @property {String} CELL_2G
-     * Text label for a connection type.
-     */
-    CELL_2G: 'Cell 2G connection',
-
-    /**
-     * @property {String} CELL_3G
-     * Text label for a connection type.
-     */
-    CELL_3G: 'Cell 3G connection',
-
-    /**
-     * @property {String} CELL_4G
-     * Text label for a connection type.
-     */
-    CELL_4G: 'Cell 4G connection',
-
-    /**
-     * @property {String} NONE
-     * Text label for a connection type.
-     */
-    NONE: 'No network connection',
-
-    /**
-     * True if the device is currently online
-     * @return {Boolean} online
-     */
-    isOnline: function() {
-        return this.getOnline();
-    }
-
-    /**
-     * @method getType
-     * Returns the current connection type.
-     * @return {String} type
-     */
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.connection.Sencha', {
-    extend: 'Ext.device.connection.Abstract',
-
-    /**
-     * @event onlinechange
-     * Fires when the connection status changes.
-     * @param {Boolean} online True if you are {@link Ext.device.Connection#isOnline online}
-     * @param {String} type The new online {@link Ext.device.Connection#getType type}
-     */
-
-    initialize: function() {
-        Ext.device.Communicator.send({
-            command: 'Connection#watch',
-            callbacks: {
-                callback: this.onConnectionChange
-            },
-            scope: this
-        });
-    },
-
-    onConnectionChange: function(e) {
-        this.setOnline(Boolean(e.online));
-        this.setType(this[e.type]);
-
-        this.fireEvent('onlinechange', this.getOnline(), this.getType());
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.connection.PhoneGap', {
-    extend: 'Ext.device.connection.Abstract',
-
-    syncOnline: function() {
-        var type = navigator.network.connection.type;
-        this._type = type;
-        this._online = type != Connection.NONE;
-    },
-
-    getOnline: function() {
-        this.syncOnline();
-        return this._online;
-    },
-
-    getType: function() {
-        this.syncOnline();
-        return this._type;
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.connection.Simulator', {
-    extend: 'Ext.device.connection.Abstract',
-
-    getOnline: function() {
-        this._online = navigator.onLine;
-        this._type = Ext.device.Connection.UNKNOWN;
-        return this._online;
-    }
-});
-
-/**
- * This class is used to check if the current device is currently online or not. It has three different implementations:
- *
- * - Sencha Packager
- * - PhoneGap
- * - Simulator
- *
- * Both the Sencha Packager and PhoneGap implementations will use the native functionality to determine if the current
- * device is online. The Simulator version will simply use `navigator.onLine`.
- *
- * When this singleton ({@link Ext.device.Connection}) is instantiated, it will automatically decide which version to
- * use based on the current platform.
- *
- * ## Examples
- *
- * Determining if the current device is online:
- *
- *     alert(Ext.device.Connection.isOnline());
- *
- * Checking the type of connection the device has:
- *
- *     alert('Your connection type is: ' + Ext.device.Connection.getType());
- *
- * The available connection types are:
- *
- * - {@link Ext.device.Connection#UNKNOWN UNKNOWN} - Unknown connection
- * - {@link Ext.device.Connection#ETHERNET ETHERNET} - Ethernet connection
- * - {@link Ext.device.Connection#WIFI WIFI} - WiFi connection
- * - {@link Ext.device.Connection#CELL_2G CELL_2G} - Cell 2G connection
- * - {@link Ext.device.Connection#CELL_3G CELL_3G} - Cell 3G connection
- * - {@link Ext.device.Connection#CELL_4G CELL_4G} - Cell 4G connection
- * - {@link Ext.device.Connection#NONE NONE} - No network connection
- * 
- * @mixins Ext.device.connection.Abstract
- *
- * @aside guide native_apis
- */
-Ext.define('Ext.device.Connection', {
-    singleton: true,
-
-    requires: [
-        'Ext.device.Communicator',
-        'Ext.device.connection.Sencha',
-        'Ext.device.connection.PhoneGap',
-        'Ext.device.connection.Simulator'
-    ],
-    
-    /**
-     * @event onlinechange
-     * @inheritdoc Ext.device.connection.Sencha#onlinechange
-     */
-
-    constructor: function() {
-        var browserEnv = Ext.browser.is;
-
-        if (browserEnv.WebView) {
-            if (browserEnv.PhoneGap) {
-                return Ext.create('Ext.device.connection.PhoneGap');
-            }
-            else {
-                return Ext.create('Ext.device.connection.Sencha');
-            }
-        }
-        else {
-            return Ext.create('Ext.device.connection.Simulator');
-        }
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.contacts.Abstract', {
-    extend: 'Ext.Evented',
-
-    config: {
-        /**
-         * @cfg {Boolean} includeImages
-         * True to include images when you get the contacts store. Please beware that this can be very slow.
-         */
-        includeImages: false
-    },
-
-    /**
-     * Returns an Array of contact objects.
-     * @return {Object[]} An array of contact objects.
-     */
-    getContacts: function(config) {
-        if (!this._store) {
-            this._store = [
-                {
-                    first: 'Robert',
-                    last: 'Dougan',
-                    emails: {
-                        work: 'rob@sencha.com'
-                    }
-                },
-                {
-                    first: 'Jamie',
-                    last: 'Avins',
-                    emails: {
-                        work: 'jamie@sencha.com'
-                    }
-                }
-            ];
-        }
-
-        config.success.call(config.scope || this, this._store);
-    },
-
-     /**
-     * Returns base64 encoded image thumbnail for a contact specified in config.id
-     * @return {String} base64 string
-     */
-
-    getThumbnail: function(config) {
-        config.callback.call(config.scope || this, "");
-    },
-
-
-     /**
-     * Returns localized, user readable label for a contact field (i.e. "Mobile", "Home")
-     * @return {String} user readable string
-     */
-    getLocalizedLabel: function(config) {
-        config.callback.call(config.scope || this, config.label.toUpperCase(), config.label);
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.contacts.Sencha', {
-    extend: 'Ext.device.contacts.Abstract',
-
-    getContacts: function(config) {
-        var includeImages = this.getIncludeImages();
-        if (typeof config.includeImages != "undefined") {
-            includeImages = config.includeImages;
-        }
-
-        if (!config) {
-            Ext.Logger.warn('Ext.device.Contacts#getContacts: You must specify a `config` object.');
-            return false;
-        }
-
-        if (!config.success) {
-            Ext.Logger.warn('Ext.device.Contacts#getContacts: You must specify a `success` method.');
-            return false;
-        }
-
-        Ext.device.Communicator.send({
-            command: 'Contacts#all',
-            callbacks: {
-                success: function(contacts) {
-                    config.success.call(config.scope || this, contacts);
-                },
-                failure: function() {
-                    if (config.failure) {
-                        config.failure.call(config.scope || this);
-                    }
-                }
-            },
-            includeImages: includeImages,
-            scope: this
-        });
-    },
-
-    getThumbnail: function(config) {
-        if (!config || typeof config.id == "undefined") {
-            Ext.Logger.warn('Ext.device.Contacts#getThumbnail: You must specify an `id` of the contact.');
-            return false;
-        }
-
-        if (!config || !config.callback) {
-            Ext.Logger.warn('Ext.device.Contacts#getThumbnail: You must specify a `callback`.');
-            return false;
-        }
-
-        Ext.device.Communicator.send({
-            command: 'Contacts#getThumbnail',
-            callbacks: {
-                success: function(src) {
-                    this.set('thumbnail', src);
-
-                    if (config.callback) {
-                        config.callback.call(config.scope || this, this);
-                    }
-                }
-            },
-            id: id,
-            scope: this
-        });
-    },
-
-    getLocalizedLabel: function(config) {
-        if (!config || typeof config.label == "undefined") {
-            Ext.Logger.warn('Ext.device.Contacts#getLocalizedLabel: You must specify an `label` to be localized.');
-            return false;
-        }
-
-        if (!config || !config.callback) {
-            Ext.Logger.warn('Ext.device.Contacts#getLocalizedLabel: You must specify a `callback`.');
-            return false;
-        }
-
-        Ext.device.Communicator.send({
-            command: 'Contacts#getLocalizedLabel',
-            callbacks: {
-                callback: function(label) {
-                    config.callback.call(config.scope || this, label, config.label);
-                }
-            },
-            label: config.label,
-            scope: this
-        });
-    }
-});
-
-/**
- * This device API allows you to access a users contacts using a {@link Ext.data.Store}. This allows you to search, filter
- * and sort through all the contacts using its methods.
- *
- * To use this API, all you need to do is require this class (`Ext.device.Contacts`) and then use `Ext.device.Contacts.getContacts()`
- * to retrieve an array of contacts.
- *
- * **Please note that this will *only* work using the Sencha Native Packager.**
- * 
- * # Example
- *
- *     Ext.application({
- *         name: 'Sencha',
- *         requires: 'Ext.device.Contacts',
- *
- *         launch: function() {
- *             Ext.Viewport.add({
- *                 xtype: 'list',
- *                 itemTpl: '{First} {Last}',
- *                 store: {
- *                     fields: ['First', 'Last'],
- *                     data: Ext.device.Contacts.getContacts()
- *                 }
- *             });
- *         }
- *     });
- *
- * @mixins Ext.device.contacts.Abstract
- * @mixins Ext.device.contacts.Sencha
- *
- * @aside guide native_apis
- */
-Ext.define('Ext.device.Contacts', {
-    singleton: true,
-
-    requires: [
-        'Ext.device.Communicator',
-        'Ext.device.contacts.Sencha'
-    ],
-
-    constructor: function() {
-        var browserEnv = Ext.browser.is;
-
-        if (browserEnv.WebView && !browserEnv.PhoneGap) {
-            return Ext.create('Ext.device.contacts.Sencha');
-        } else {
-            return Ext.create('Ext.device.contacts.Abstract');
-        }
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.device.Abstract', {
-    extend: 'Ext.EventedBase',
-
-    /**
-     * @event schemeupdate
-     * Event which is fired when your Sencha Native packaged application is opened from another application using a custom URL scheme.
-     * 
-     * This event will only fire if the application was already open (in other words; `onReady` was already fired). This means you should check
-     * if {@link Ext.device.Device#scheme} is set in your Application `launch`/`onReady` method, and perform any needed changes for that URL (if defined).
-     * Then listen to this event for future changed.
-     *
-     * ## Example
-     *
-     *     Ext.application({
-     *         name: 'Sencha',
-     *         requires: ['Ext.device.Device'],
-     *         launch: function() {
-     *             if (Ext.device.Device.scheme) {
-     *                 // the application was opened via another application. Do something:
-     *                 console.log('Applicaton opened via another application: ' + Ext.device.Device.scheme.url);
-     *             }
-     *
-     *             // Listen for future changes
-     *             Ext.device.Device.on('schemeupdate', function(device, scheme) {
-     *                 // the application was launched, closed, and then launched another from another application
-     *                 // this means onReady wont be called again ('cause the application is already running in the 
-     *                 // background) - but this event will be fired
-     *                 console.log('Applicated reopened via another application: ' + scheme.url);
-     *             }, this);
-     *         }
-     *     });
-     *
-     * __Note:__ This currently only works with the Sencha Native Packager. If you attempt to listen to this event when packaged with
-     * PhoneGap or simply in the browser, it will never fire.**
-     * 
-     * @param {Ext.device.Device} this The instance of Ext.device.Device
-     * @param {Object/Boolean} scheme The scheme information, if opened via another application
-     * @param {String} scheme.url The URL that was opened, if this application was opened via another application. Example: `sencha:`
-     * @param {String} scheme.sourceApplication The source application that opened this application. Example: `com.apple.safari`.
-     */
-    
-    /**
-     * @property {String} name
-     * Returns the name of the current device. If the current device does not have a name (for example, in a browser), it will
-     * default to `not available`.
-     *
-     *     alert('Device name: ' + Ext.device.Device.name);
-     */
-    name: 'not available',
-
-    /**
-     * @property {String} uuid
-     * Returns a unique identifier for the current device. If the current device does not have a unique identifier (for example,
-     * in a browser), it will default to `anonymous`.
-     *
-     *     alert('Device UUID: ' + Ext.device.Device.uuid);
-     */
-    uuid: 'anonymous',
-
-    /**
-     * @property {String} platform
-     * The current platform the device is running on.
-     *
-     *     alert('Device platform: ' + Ext.device.Device.platform);
-     */
-    platform: Ext.os.name,
-
-    /**
-     * @property {Object/Boolean} scheme
-     * 
-     */
-    scheme: false,
-    
-    /**
-     * Opens a specified URL. The URL can contain a custom URL Scheme for another app or service:
-     *
-     *     // Safari
-     *     Ext.device.Device.openURL('http://sencha.com');
-     *
-     *     // Telephone
-     *     Ext.device.Device.openURL('tel:6501231234');
-     *
-     *     // SMS with a default number
-     *     Ext.device.Device.openURL('sms:+12345678901');
-     *
-     *     // Email client
-     *     Ext.device.Device.openURL('mailto:rob@sencha.com');
-     *
-     * You can find a full list of available URL schemes here: [http://wiki.akosma.com/IPhone_URL_Schemes](http://wiki.akosma.com/IPhone_URL_Schemes).
-     *
-     * __Note:__ This currently only works on iOS using the Sencha Native Packager. Attempting to use this on PhoneGap, iOS Simulator 
-     * or the browser will simply result in the current window location changing.**
-     *
-     * If successful, this will close the application (as another one opens).
-     * 
-     * @param {String} url The URL to open
-     */
-    openURL: function(url) {
-        window.location = url;
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.device.PhoneGap', {
-    extend: 'Ext.device.device.Abstract',
-
-    constructor: function() {
-        // We can't get the device details until the device is ready, so lets wait.
-        if (Ext.Viewport.isReady) {
-            this.onReady();
-        } else {
-            Ext.Viewport.on('ready', this.onReady, this, {single: true});
-        }
-    },
-
-    onReady: function() {
-        this.name = device.name;
-        this.uuid = device.uuid;
-        this.platform = device.platformName || Ext.os.name;
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.device.Sencha', {
-    extend: 'Ext.device.device.Abstract',
-
-    constructor: function() {
-        this.name = device.name;
-        this.uuid = device.uuid;
-        this.platform = device.platformName || Ext.os.name;
-
-        this.initURL();
-    },
-
-    openURL: function(url) {
-        Ext.device.Communicator.send({
-            command: 'OpenURL#open',
-            url: url
-        });
-    },
-
-    /**
-     * @private
-     */
-    initURL: function() {
-        Ext.device.Communicator.send({
-            command: "OpenURL#watch",
-            callbacks: {
-                callback: this.updateURL
-            },
-            scope: this
-        });
-    },
-
-    /**
-     * @private
-     */
-    updateURL: function() {
-        this.scheme = device.scheme || false;
-        this.fireEvent('schemeupdate', this, this.scheme);
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.device.Simulator', {
-    extend: 'Ext.device.device.Abstract'
-});
-
-/**
- * Provides a cross device way to get information about the device your application is running on. There are 3 different implementations:
- *
- * - Sencha Packager
- * - [PhoneGap](http://docs.phonegap.com/en/1.4.1/phonegap_device_device.md.html)
- * - Simulator
- *
- * ## Examples
- *
- * #### Device Information
- * 
- * Getting the device information:
- * 
- *     Ext.application({
- *         name: 'Sencha',
- *
- *         // Remember that the Ext.device.Device class *must* be required
- *         requires: ['Ext.device.Device'],
- * 
- *         launch: function() {
- *             alert([
- *                 'Device name: ' + Ext.device.Device.name,
- *                 'Device platform: ' + Ext.device.Device.platform,
- *                 'Device UUID: ' + Ext.device.Device.uuid
- *             ].join('\n'));
- *         }
- *     });
- *
- * ### Custom Scheme URLs
- * 
- * Using custom scheme URLs to application your application from other applications:
- *
- *     Ext.application({
- *         name: 'Sencha',
- *         requires: ['Ext.device.Device'],
- *         launch: function() {
- *             if (Ext.device.Device.scheme) {
- *                 // the application was opened via another application. Do something:
- *                 alert('Applicaton pened via another application: ' + Ext.device.Device.scheme.url);
- *             }
- *
- *             // Listen for future changes
- *             Ext.device.Device.on('schemeupdate', function(device, scheme) {
- *                 // the application was launched, closed, and then launched another from another application
- *                 // this means onReady wont be called again ('cause the application is already running in the 
- *                 // background) - but this event will be fired
- *                 alert('Applicated reopened via another application: ' + scheme.url);
- *             }, this);
- *         }
- *     });
- *
- * Of course, you must add add the custom URLs you would like to use when packaging your application. You can do this by adding
- * the following code into the `rawConfig` property inside your `package.json` file (Sencha Native Packager configuration file):
- * 
- *     {
- *         ...
- *         "rawConfig": "<key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>sencha</string></array><key>CFBundleURLName</key><string>com.sencha.example</string></dict></array>"
- *         ...
- *     }
- *
- * You can change the available URL schemes and the application identifier above.
- * 
- * You can then test it by packaging and installing the application onto a device/iOS Simulator, opening Safari and typing: `sencha:testing`.
- * The application will launch and it will `alert` the URL you specified.
- *
- * **PLEASE NOTE: This currently only works with the Sencha Native Packager. If you attempt to listen to this event when packaged with 
- * PhoneGap or simply in the browser, it will not function.**
- * 
- * @mixins Ext.device.device.Abstract
- *
- * @aside guide native_apis
- */
-Ext.define('Ext.device.Device', {
-    singleton: true,
-
-    requires: [
-        'Ext.device.Communicator',
-        'Ext.device.device.PhoneGap',
-        'Ext.device.device.Sencha',
-        'Ext.device.device.Simulator'
-    ],
-
-    constructor: function() {
-        var browserEnv = Ext.browser.is;
-
-        if (browserEnv.WebView) {
-            if (browserEnv.PhoneGap) {
-                return Ext.create('Ext.device.device.PhoneGap');
-            }
-            else {
-                return Ext.create('Ext.device.device.Sencha');
-            }
-        }
-        else {
-            return Ext.create('Ext.device.device.Simulator');
-        }
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.geolocation.Abstract', {
-    config: {
-        /**
-         * @cfg {Number} maximumAge
-         * This option indicates that the application is willing to accept cached location information whose age
-         * is no greater than the specified time in milliseconds. If maximumAge is set to 0, an attempt to retrieve
-         * new location information is made immediately.
-         */
-        maximumAge: 0,
-
-        /**
-         * @cfg {Number} frequency The default frequency to get the current position when using {@link Ext.device.Geolocation#watchPosition}.
-         */
-        frequency: 10000,
-
-        /**
-         * @cfg {Boolean} allowHighAccuracy True to allow high accuracy when getting the current position.
-         */
-        allowHighAccuracy: false,
-
-        /**
-         * @cfg {Number} timeout
-         * The maximum number of milliseconds allowed to elapse between a location update operation.
-         */
-        timeout: Infinity
-    },
-
-    /**
-     * Attempts to get the current position of this device.
-     *
-     *     Ext.device.Geolocation.getCurrentPosition({
-     *         success: function(position) {
-     *             console.log(position);
-     *         },
-     *         failure: function() {
-     *             Ext.Msg.alert('Geolocation', 'Something went wrong!');
-     *         }
-     *     });
-     *
-     * *Note:* If you want to watch the current position, you could use {@link Ext.device.Geolocation#watchPosition} instead.
-     *
-     * @param {Object} config An object which contains the following config options:
-     *
-     * @param {Function} config.success
-     * The function to call when the location of the current device has been received.
-     *
-     * @param {Object} config.success.position
-     *
-     * @param {Function} config.failure
-     * The function that is called when something goes wrong.
-     *
-     * @param {Object} config.scope
-     * The scope of the `success` and `failure` functions.
-     *
-     * @param {Number} config.maximumAge
-     * The maximum age of a cached location. If you do not enter a value for this, the value of {@link #maximumAge}
-     * will be used.
-     *
-     * @param {Number} config.timeout
-     * The timeout for this request. If you do not specify a value, it will default to {@link #timeout}.
-     *
-     * @param {Boolean} config.allowHighAccuracy
-     * True to enable allow accuracy detection of the location of the current device. If you do not specify a value, it will
-     * default to {@link #allowHighAccuracy}.
-     */
-    getCurrentPosition: function(config) {
-        var defaultConfig = Ext.device.geolocation.Abstract.prototype.config;
-
-        config = Ext.applyIf(config, {
-            maximumAge: defaultConfig.maximumAge,
-            frequency: defaultConfig.frequency,
-            allowHighAccuracy: defaultConfig.allowHighAccuracy,
-            timeout: defaultConfig.timeout
-        });
-
-        // <debug>
-        if (!config.success) {
-            Ext.Logger.warn('You need to specify a `success` function for #getCurrentPosition');
-        }
-        // </debug>
-
-        return config;
-    },
-
-    /**
-     * Watches for the current position and calls the callback when successful depending on the specified {@link #frequency}.
-     *
-     *     Ext.device.Geolocation.watchPosition({
-     *         callback: function(position) {
-     *             console.log(position);
-     *         },
-     *         failure: function() {
-     *             Ext.Msg.alert('Geolocation', 'Something went wrong!');
-     *         }
-     *     });
-     *
-     * @param {Object} config An object which contains the following config options:
-     *
-     * @param {Function} config.callback
-     * The function to be called when the position has been updated.
-     *
-     * @param {Function} config.failure
-     * The function that is called when something goes wrong.
-     *
-     * @param {Object} config.scope
-     * The scope of the `success` and `failure` functions.
-     *
-     * @param {Boolean} config.frequency
-     * The frequency in which to call the supplied callback. Defaults to {@link #frequency} if you do not specify a value.
-     *
-     * @param {Boolean} config.allowHighAccuracy
-     * True to enable allow accuracy detection of the location of the current device. If you do not specify a value, it will
-     * default to {@link #allowHighAccuracy}.
-     */
-    watchPosition: function(config) {
-        var defaultConfig = Ext.device.geolocation.Abstract.prototype.config;
-
-        config = Ext.applyIf(config, {
-            maximumAge: defaultConfig.maximumAge,
-            frequency: defaultConfig.frequency,
-            allowHighAccuracy: defaultConfig.allowHighAccuracy,
-            timeout: defaultConfig.timeout
-        });
-
-        // <debug>
-        if (!config.callback) {
-            Ext.Logger.warn('You need to specify a `callback` function for #watchPosition');
-        }
-        // </debug>
-
-        return config;
-    },
-
-    /**
-     * If you are currently watching for the current position, this will stop that task.
-     */
-    clearWatch: function() {}
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.geolocation.Sencha', {
-    extend: 'Ext.device.geolocation.Abstract',
-
-    getCurrentPosition: function(config) {
-        config = this.callParent([config]);
-
-        Ext.apply(config, {
-            command: 'Geolocation#getCurrentPosition',
-            callbacks: {
-                success: config.success,
-                failure: config.failure
-            }
-        });
-
-        Ext.applyIf(config, {
-            scope: this
-        });
-
-        delete config.success;
-        delete config.failure;
-
-        Ext.device.Communicator.send(config);
-
-        return config;
-    },
-
-    watchPosition: function(config) {
-        config = this.callParent([config]);
-
-        Ext.apply(config, {
-            command: 'Geolocation#watchPosition',
-            callbacks: {
-                success: config.callback,
-                failure: config.failure
-            }
-        });
-
-        Ext.applyIf(config, {
-            scope: this
-        });
-
-        delete config.callback;
-        delete config.failure;
-
-        Ext.device.Communicator.send(config);
-
-        return config;
-    },
-
-    clearWatch: function() {
-        Ext.device.Communicator.send({
-            command: 'Geolocation#clearWatch'
-        });
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.geolocation.Simulator', {
-    extend: 'Ext.device.geolocation.Abstract',
-    requires: ['Ext.util.Geolocation'],
-
-    getCurrentPosition: function(config) {
-        config = this.callParent([config]);
-
-        Ext.apply(config, {
-            autoUpdate: false,
-            listeners: {
-                scope: this,
-                locationupdate: function(geolocation) {
-                    if (config.success) {
-                        config.success.call(config.scope || this, geolocation.position);
-                    }
-                },
-                locationerror: function() {
-                    if (config.failure) {
-                        config.failure.call(config.scope || this);
-                    }
-                }
-            }
-        });
-
-        this.geolocation = Ext.create('Ext.util.Geolocation', config);
-        this.geolocation.updateLocation();
-
-        return config;
-    },
-
-    watchPosition: function(config) {
-        config = this.callParent([config]);
-
-        Ext.apply(config, {
-            listeners: {
-                scope: this,
-                locationupdate: function(geolocation) {
-                    if (config.callback) {
-                        config.callback.call(config.scope || this, geolocation.position);
-                    }
-                },
-                locationerror: function() {
-                    if (config.failure) {
-                        config.failure.call(config.scope || this);
-                    }
-                }
-            }
-        });
-
-        this.geolocation = Ext.create('Ext.util.Geolocation', config);
-
-        return config;
-    },
-
-    clearWatch: function() {
-        if (this.geolocation) {
-            this.geolocation.destroy();
-        }
-
-        this.geolocation = null;
-    }
-});
-
-/**
- * Provides access to the native Geolocation API when running on a device. There are three implementations of this API:
- *
- * - Sencha Packager
- * - [PhoneGap](http://docs.phonegap.com/en/1.4.1/phonegap_device_device.md.html)
- * - Browser
- *
- * This class will automatically select the correct implementation depending on the device your application is running on.
- *
- * ## Examples
- *
- * Getting the current location:
- *
- *     Ext.device.Geolocation.getCurrentPosition({
- *         success: function(position) {
- *             console.log(position.coords);
- *         },
- *         failure: function() {
- *             console.log('something went wrong!');
- *         }
- *     });
- *
- * Watching the current location:
- *
- *     Ext.device.Geolocation.watchPosition({
- *         frequency: 3000, // Update every 3 seconds
- *         callback: function(position) {
- *             console.log('Position updated!', position.coords);
- *         },
- *         failure: function() {
- *             console.log('something went wrong!');
- *         }
- *     });
- *
- * @mixins Ext.device.geolocation.Abstract
- *
- * @aside guide native_apis
- */
-Ext.define('Ext.device.Geolocation', {
-    singleton: true,
-
-    requires: [
-        'Ext.device.Communicator',
-        'Ext.device.geolocation.Sencha',
-        'Ext.device.geolocation.Simulator'
-    ],
-
-    constructor: function() {
-        var browserEnv = Ext.browser.is;
-
-        if (browserEnv.WebView && browserEnv.Sencha) {
-            return Ext.create('Ext.device.geolocation.Sencha');
-        }
-        else {
-            return Ext.create('Ext.device.geolocation.Simulator');
-        }
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.notification.Abstract', {
-    /**
-     * A simple way to show a notification.
-     *
-     *     Ext.device.Notification.show({
-     *        title: 'Verification',
-     *        message: 'Is your email address is: test@sencha.com',
-     *        buttons: Ext.MessageBox.OKCANCEL,
-     *        callback: function(button) {
-     *            if (button == "ok") {
-     *                console.log('Verified');
-     *            } else {
-     *                console.log('Nope.');
-     *            }
-     *        }
-     *     });
-     *
-     * @param {Object} config An object which contains the following config options:
-     *
-     * @param {String} config.title The title of the notification
-     *
-     * @param {String} config.message The message to be displayed on the notification
-     *
-     * @param {String/String[]} [config.buttons="OK"]
-     * The buttons to be displayed on the notification. It can be a string, which is the title of the button, or an array of multiple strings.
-     * Please not that you should not use more than 2 buttons, as they may not be displayed correct on all devices.
-     *
-     * @param {Function} config.callback
-     * A callback function which is called when the notification is dismissed by clicking on the configured buttons.
-     * @param {String} config.callback.buttonId The id of the button pressed, one of: 'ok', 'yes', 'no', 'cancel'.
-     *
-     * @param {Object} config.scope The scope of the callback function
-     */
-    show: function(config) {
-        if (!config.message) {
-            throw('[Ext.device.Notification#show] You passed no message');
-        }
-
-        if (!config.buttons) {
-            config.buttons = "OK";
-        }
-
-        if (!Ext.isArray(config.buttons)) {
-            config.buttons = [config.buttons];
-        }
-
-        if (!config.scope) {
-            config.scope = this;
-        }
-
-        return config;
-    },
-
-    /**
-     * Vibrates the device.
-     */
-    vibrate: Ext.emptyFn
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.notification.PhoneGap', {
-    extend: 'Ext.device.notification.Abstract',
-    requires: ['Ext.device.Communicator'],
-
-    show: function() {
-        var config = this.callParent(arguments),
-            buttons = (config.buttons) ? config.buttons.join(',') : null,
-            onShowCallback = function(index) {
-                if (config.callback) {
-                    config.callback.apply(config.scope, (config.buttons) ? [config.buttons[index - 1]].toLowerCase() : []);
-                }
-            };
-
-        // change Ext.MessageBox buttons into normal arrays
-        var ln = butons.length;
-        if (ln && typeof buttons[0] != "string") {
-            var newButtons = [],
-                i;
-
-            for (i = 0; i < ln; i++) {
-                newButtons.push(buttons[i].text);
-            }
-
-            buttons = newButtons;
-        }
-
-        navigator.notification.confirm(
-            config.message, // message
-            onShowCallback, // callback
-            config.title, // title
-            buttons // array of button names
-        );
-    },
-
-    vibrate: function() {
-        navigator.notification.vibrate(2000);
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.notification.Sencha', {
-    extend: 'Ext.device.notification.Abstract',
-    requires: ['Ext.device.Communicator'],
-
-    show: function() {
-        var config = this.callParent(arguments);
-
-        Ext.device.Communicator.send({
-            command: 'Notification#show',
-            callbacks: {
-                callback: config.callback
-            },
-            scope  : config.scope,
-            title  : config.title,
-            message: config.message,
-            buttons: config.buttons.join(',') //@todo fix this
-        });
-    },
-
-    vibrate: function() {
-        Ext.device.Communicator.send({
-            command: 'Notification#vibrate'
-        });
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.notification.Simulator', {
-    extend: 'Ext.device.notification.Abstract',
-    requires: ['Ext.MessageBox'],
-
-    // @private
-    msg: null,
-
-	show: function() {
-        var config = this.callParent(arguments),
-            buttons = [],
-            ln = config.buttons.length,
-            button, i, callback, msg;
-
-        //buttons
-        for (i = 0; i < ln; i++) {
-            button = config.buttons[i];
-            if (Ext.isString(button)) {
-                button = {
-                    text: config.buttons[i],
-                    itemId: config.buttons[i].toLowerCase()
-                };
-            }
-
-            buttons.push(button);
-        }
-
-        this.msg = Ext.create('Ext.MessageBox');
-
-        msg = this.msg;
-
-        callback = function(itemId) {
-            if (config.callback) {
-                config.callback.apply(config.scope, [itemId]);
-            }
-        };
-
-        this.msg.show({
-            title  : config.title,
-            message: config.message,
-            scope  : this.msg,
-            buttons: buttons,
-            fn     : callback
-        });
-    },
-
-    vibrate: function() {
-        //nice animation to fake vibration
-        var animation = [
-            "@-webkit-keyframes vibrate{",
-            "    from {",
-            "        -webkit-transform: rotate(-2deg);",
-            "    }",
-            "    to{",
-            "        -webkit-transform: rotate(2deg);",
-            "    }",
-            "}",
-
-            "body {",
-            "    -webkit-animation: vibrate 50ms linear 10 alternate;",
-            "}"
-        ];
-
-        var head = document.getElementsByTagName("head")[0];
-        var cssNode = document.createElement('style');
-        cssNode.innerHTML = animation.join('\n');
-        head.appendChild(cssNode);
-
-        setTimeout(function() {
-            head.removeChild(cssNode);
-        }, 400);
-    }
-});
-
-/**
- * Provides a cross device way to show notifications. There are three different implementations:
- *
- * - Sencha Packager
- * - PhoneGap
- * - Simulator
- *
- * When this singleton is instantiated, it will automatically use the correct implementation depending on the current device.
- *
- * Both the Sencha Packager and PhoneGap versions will use the native implementations to display the notification. The
- * Simulator implementation will use {@link Ext.MessageBox} for {@link #show} and a simply animation when you call {@link #vibrate}.
- *
- * ## Examples
- *
- * To show a simple notification:
- *
- *     Ext.device.Notification.show({
- *         title: 'Verification',
- *         message: 'Is your email address: test@sencha.com',
- *         buttons: Ext.MessageBox.OKCANCEL,
- *         callback: function(button) {
- *             if (button === "ok") {
- *                 console.log('Verified');
- *             } else {
- *                 console.log('Nope');
- *             }
- *         }
- *     });
- *
- * To make the device vibrate:
- *
- *     Ext.device.Notification.vibrate();
- * 
- * @mixins Ext.device.notification.Abstract
- *
- * @aside guide native_apis
- */
-Ext.define('Ext.device.Notification', {
-    singleton: true,
-
-    requires: [
-        'Ext.device.Communicator',
-        'Ext.device.notification.PhoneGap',
-        'Ext.device.notification.Sencha',
-        'Ext.device.notification.Simulator'
-    ],
-
-    constructor: function() {
-        var browserEnv = Ext.browser.is;
-
-        if (browserEnv.WebView) {
-            if (browserEnv.PhoneGap) {
-                return Ext.create('Ext.device.notification.PhoneGap');
-            }
-            else {
-                return Ext.create('Ext.device.notification.Sencha');
-            }
-        }
-        else {
-            return Ext.create('Ext.device.notification.Simulator');
-        }
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.orientation.Abstract', {
-    extend: 'Ext.EventedBase',
-
-    /**
-     * @event orientationchange
-     * Fires when the orientation has been changed on this device.
-     *
-     *     Ext.device.Orientation.on({
-     *         scope: this,
-     *         orientationchange: function(e) {
-     *             console.log('Alpha: ', e.alpha);
-     *             console.log('Beta: ', e.beta);
-     *             console.log('Gamma: ', e.gamma);
-     *         }
-     *     });
-     *
-     * @param {Object} event The event object
-     * @param {Object} event.alpha The alpha value of the orientation event
-     * @param {Object} event.beta The beta value of the orientation event
-     * @param {Object} event.gamma The gamma value of the orientation event
-     */
-
-    onDeviceOrientation: function(e) {
-        this.doFireEvent('orientationchange', [e]);
-    }
-});
-
-/**
- * Provides the HTML5 implementation for the orientation API.
- * @private
- */
-Ext.define('Ext.device.orientation.HTML5', {
-    extend: 'Ext.device.orientation.Abstract',
-
-    initialize: function() {
-        this.onDeviceOrientation = Ext.Function.bind(this.onDeviceOrientation, this);
-        window.addEventListener('deviceorientation', this.onDeviceOrientation, true);
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.orientation.Sencha', {
-    extend: 'Ext.device.orientation.Abstract',
-
-    requires: [
-        'Ext.device.Communicator'
-    ],
-
-    /**
-     * From the native shell, the callback needs to be invoked infinitely using a timer, ideally 50 times per second.
-     * The callback expects one event object argument, the format of which should looks like this:
-     *
-     *     {
-     *          alpha: 0,
-     *          beta: 0,
-     *          gamma: 0
-     *     }
-     *
-     * Refer to [Safari DeviceOrientationEvent Class Reference][1] for more details.
-     * 
-     * [1]: http://developer.apple.com/library/safari/#documentation/SafariDOMAdditions/Reference/DeviceOrientationEventClassRef/DeviceOrientationEvent/DeviceOrientationEvent.html
-     */
-    initialize: function() {
-        Ext.device.Communicator.send({
-            command: 'Orientation#watch',
-            callbacks: {
-                callback: this.onDeviceOrientation
-            },
-            scope: this
-        });
-    }
-});
-
-/**
- * This class provides you with a cross platform way of listening to when the the orientation changes on the
- * device your application is running on.
- *
- * The {@link Ext.device.Orientation#orientationchange orientationchange} event gets passes the `alpha`, `beta` and
- * `gamma` values.
- *
- * You can find more information about these values and how to use them on the [W3C device orientation specification](http://dev.w3.org/geo/api/spec-source-orientation.html#deviceorientation).
- *
- * ## Example
- *
- * To listen to the device orientation, you can do the following:
- *
-*     Ext.device.Orientation.on({
-*         scope: this,
-*         orientationchange: function(e) {
-*             console.log('Alpha: ', e.alpha);
-*             console.log('Beta: ', e.beta);
-*             console.log('Gamma: ', e.gamma);
-*         }
-*     });
- *
- * @mixins Ext.device.orientation.Abstract
- * 
- * @aside guide native_apis
- */
-Ext.define('Ext.device.Orientation', {
-    singleton: true,
-
-    requires: [
-        'Ext.device.Communicator',
-        'Ext.device.orientation.HTML5',
-        'Ext.device.orientation.Sencha'
-    ],
-
-    constructor: function() {
-        var browserEnv = Ext.browser.is;
-
-        if (browserEnv.Sencha) {
-            return Ext.create('Ext.device.orientation.Sencha');
-        }
-        else {
-            return Ext.create('Ext.device.orientation.HTML5');
-        }
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.purchases.Sencha', {
-    /**
-     * Checks if the current user is able to make payments.
-     * 
-     * ## Example
-     * 
-     *     Ext.device.Purchases.canMakePayments({
-     *         success: function() {
-     *             console.log('Yup! :)');
-     *         },
-     *         failure: function() {
-     *             console.log('Nope! :(');
-     *         }
-     *     });
-     * 
-     * @param {Object} config
-     * @param {Function} config.success
-     * @param {Function} config.failure
-     * @param {Object} config.scope
-     */
-    canMakePayments: function(config) {
-        if (!config.success) {
-            Ext.Logger.error('You must specify a `success` callback for `#canMakePayments` to work.');
-            return false;
-        }
-
-        if (!config.failure) {
-            Ext.Logger.error('You must specify a `failure` callback for `#canMakePayments` to work.');
-            return false;
-        }
-
-        Ext.device.Communicator.send({
-            command: 'Purchase#canMakePayments',
-            callbacks: {
-                success: config.success,
-                failure: config.failure
-            },
-            scope: config.scope || this
-        });
-    },
-
-    /**
-     * Returns a {@link Ext.data.Store} instance of all the available products.
-     * 
-     * ## Example
-     * 
-     *     Ext.device.Purchases.getProducts({
-     *         success: function(store) {
-     *             console.log('Got the store! You have ' + store.getCount() + ' products.');
-     *         },
-     *         failure: function() {
-     *             console.log('Oops. Looks like something went wrong.');
-     *         }
-     *     });
-     * 
-     * @param {Object} config
-     * @param {Function} config.success
-     * @param {Ext.data.Store} config.success.store A store of products available to purchase.
-     * @param {Function} config.failure
-     * @param {Object} config.scope
-     */
-    getProducts: function(config) {
-        if (!config.success) {
-            Ext.Logger.error('You must specify a `success` callback for `#getProducts` to work.');
-            return false;
-        }
-
-        if (!config.failure) {
-            Ext.Logger.error('You must specify a `failure` callback for `#getProducts` to work.');
-            return false;
-        }
-
-        Ext.device.Communicator.send({
-            command: 'Purchase#getProducts',
-            callbacks: {
-                success: function(products) {
-                    var store = Ext.create('Ext.data.Store', {
-                        model: 'Ext.device.Purchases.Product',
-                        data: products
-                    });
-
-                    config.success.call(config.scope || this, store);
-                },
-                failure: config.failure
-            },
-            scope: config.scope || this
-        });
-    },
-
-    /**
-     * Returns all purchases ever made by this user.
-     * @param {Object} config
-     * @param {Function} config.success
-     * @param {Array[]} config.success.purchases
-     * @param {Function} config.failure
-     * @param {Object} config.scope
-     */
-    getPurchases: function(config) {
-        if (!config.success) {
-            Ext.Logger.error('You must specify a `success` callback for `#getPurchases` to work.');
-            return false;
-        }
-
-        if (!config.failure) {
-            Ext.Logger.error('You must specify a `failure` callback for `#getPurchases` to work.');
-            return false;
-        }
-
-        Ext.device.Communicator.send({
-            command: 'Purchase#getPurchases',
-            callbacks: {
-                success: function(purchases) {
-                    var array = [],
-                        ln = purchases.length,
-                        i;
-
-                    for (i = 0; i < ln; i++) {
-                        array.push({
-                            productIdentifier: purchases[i]
-                        });
-                    }
-
-                    var store = Ext.create('Ext.data.Store', {
-                        model: 'Ext.device.Purchases.Purchase',
-                        data: array
-                    });
-
-                    config.success.call(config.scope || this, store);
-                },
-                failure: function() {
-                    config.failure.call(config.scope || this);
-                }
-            },
-            scope: config.scope || this
-        });
-    },
-
-    /**
-     * Returns all purchases that are currently pending.
-     * @param {Object} config
-     * @param {Function} config.success
-     * @param {Ext.data.Store} config.success.purchases
-     * @param {Function} config.failure
-     * @param {Object} config.scope
-     */
-    getPendingPurchases: function(config) {
-        if (!config.success) {
-            Ext.Logger.error('You must specify a `success` callback for `#getPendingPurchases` to work.');
-            return false;
-        }
-
-        if (!config.failure) {
-            Ext.Logger.error('You must specify a `failure` callback for `#getPendingPurchases` to work.');
-            return false;
-        }
-
-        Ext.device.Communicator.send({
-            command: 'Purchase#getPendingPurchases',
-            callbacks: {
-                success: function(purchases) {
-                    var array = [],
-                        ln = purchases.length,
-                        i;
-
-                    for (i = 0; i < ln; i++) {
-                        array.push({
-                            productIdentifier: purchases[i],
-                            state: 'pending'
-                        });
-                    }
-
-                    var store = Ext.create('Ext.data.Store', {
-                        model: 'Ext.device.Purchases.Purchase',
-                        data: array
-                    });
-
-                    config.success.call(config.scope || this, store);
-                },
-                failure: function() {
-                    config.failure.call(config.scope || this);
-                }
-            },
-            scope: config.scope || this
-        });
-    }
-}, function() {
-    /**
-     * The product model class which is uses when fetching available products using {@link Ext.device.Purchases#getProducts}.
-     */
-    Ext.define('Ext.device.Purchases.Product', {
-        extend: 'Ext.data.Model',
-
-        config: {
-            fields: [
-                'localizeTitle',
-                'price',
-                'priceLocale',
-                'localizedDescription',
-                'productIdentifier'
-            ]
-        },
-
-        /**
-         * Will attempt to purchase this product.
-         * 
-         * ## Example
-         * 
-         *     product.purchase({
-         *         success: function() {
-         *             console.log(product.get('title') + ' purchased!');
-         *         },
-         *         failure: function() {
-         *             console.log('Something went wrong while trying to purchase ' + product.get('title'));
-         *         }
-         *     });
-         * 
-         * @param {Object} config
-         * @param {Ext.data.Model/String} config.product
-         * @param {Function} config.success
-         * @param {Function} config.failure
-         */
-        purchase: function(config) {
-            if (!config.success) {
-                Ext.Logger.error('You must specify a `success` callback for `#product` to work.');
-                return false;
-            }
-
-            if (!config.failure) {
-                Ext.Logger.error('You must specify a `failure` callback for `#product` to work.');
-                return false;
-            }
-
-            Ext.device.Communicator.send({
-                command: 'Purchase#purchase',
-                callbacks: {
-                    success: config.success,
-                    failure: config.failure
-                },
-                identifier: this.get('productIdentifier'),
-                scope: config.scope || this
-            });
-        }
-    });
-
-    /**
-     *
-     */
-    Ext.define('Ext.device.Purchases.Purchase', {
-        extend: 'Ext.data.Model',
-
-        config: {
-            fields: [
-                'productIdentifier',
-                'state'
-            ]
-        },
-
-        /**
-         * Attempts to mark this purchase as complete
-         * @param {Object} config
-         * @param {Function} config.success
-         * @param {Function} config.failure
-         * @param {Object} config.scope
-         */
-        complete: function(config) {
-            var me = this;
-
-            if (!config.success) {
-                Ext.Logger.error('You must specify a `success` callback for `#complete` to work.');
-                return false;
-            }
-
-            if (!config.failure) {
-                Ext.Logger.error('You must specify a `failure` callback for `#complete` to work.');
-                return false;
-            }
-
-            if (this.get('state') != "pending") {
-                config.failure.call(config.scope || this, "purchase is not pending");
-            }
-
-            Ext.device.Communicator.send({
-                command: 'Purchase#completePurchase',
-                identifier: me.get('productIdentifier'),
-                callbacks: {
-                    success: function() {
-                        me.set('state', 'complete');
-                        config.success.call(config.scope || this);
-                    },
-                    failure: function() {
-                        me.set('state', 'pending');
-                        config.failure.call(config.scope || this);
-                    }
-                },
-                scope: config.scope || this
-            });
-        }
-    });
-});
-
-/**
- * 
- *
- * @mixins Ext.device.purchases.Sencha
- * 
- * @aside guide native_apis
- */
-Ext.define('Ext.device.Purchases', {
-    singleton: true,
-
-    requires: [
-        'Ext.device.purchases.Sencha'
-    ],
-
-    constructor: function() {
-        return Ext.create('Ext.device.purchases.Sencha');
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.push.Abstract', {
-    /**
-     * @property
-     * Notification type: alert.
-     */
-    ALERT: 1,
-    /**
-     * @property
-     * Notification type: badge.
-     */
-    BADGE: 2,
-    /**
-     * @property
-     * Notification type: sound.
-     */
-    SOUND: 4,
-
-    /**
-     * @method getInitialConfig
-     * @hide
-     */
-
-    /**
-     * Registers a push notification.
-     *
-     *     Ext.device.Push.register({
-     *         type: Ext.device.Push.ALERT|Ext.device.Push.BADGE|Ext.device.Push.SOUND,
-     *         success: function(token) {
-     *             console.log('# Push notification registration successful:');
-     *             console.log('    token: ' + token);
-     *         },
-     *         failure: function(error) {
-     *             console.log('# Push notification registration unsuccessful:');
-     *             console.log('     error: ' + error);
-     *         },
-     *         received: function(notifications) {
-     *             console.log('# Push notification received:');
-     *             console.log('    ' + JSON.stringify(notifications));
-     *         }
-     *     });
-     *
-     * @param {Object} config
-     * The configuration for to pass when registering this push notification service.
-     *
-     * @param {Number} config.type
-     * The type(s) of notifications to enable. Available options are:
-     *
-     *   - {@link Ext.device.Push#ALERT}
-     *   - {@link Ext.device.Push#BADGE}
-     *   - {@link Ext.device.Push#SOUND}
-     *
-     * **Usage**
-     *
-     * Enable alerts and badges:
-     *
-     *     Ext.device.Push.register({
-     *         type: Ext.device.Push.ALERT|Ext.device.Push.BADGE
-     *         // ...
-     *     });
-     *
-     * Enable alerts, badges and sounds:
-     *
-     *     Ext.device.Push.register({
-     *         type: Ext.device.Push.ALERT|Ext.device.Push.BADGE|Ext.device.Push.SOUND
-     *         // ...
-     *     });
-     *
-     * Enable only sounds:
-     *
-     *     Ext.device.Push.register({
-     *         type: Ext.device.Push.SOUND
-     *         // ...
-     *     });
-     *
-     * @param {Function} config.success
-     * The callback to be called when registration is complete.
-     *
-     * @param {String} config.success.token
-     * A unique token for this push notification service.
-     *
-     * @param {Function} config.failure
-     * The callback to be called when registration fails.
-     *
-     * @param {String} config.failure.error
-     * The error message.
-     *
-     * @param {Function} config.received
-     * The callback to be called when a push notification is received on this device.
-     *
-     * @param {Object} config.received.notifications
-     * The notifications that have been received.
-     */
-    register: function(config) {
-        var me = this;
-
-        if (!config.received) {
-            Ext.Logger.error('Failed to pass a received callback. This is required.');
-        }
-
-        if (!config.type) {
-            Ext.Logger.error('Failed to pass a type. This is required.');
-        }
-
-        return {
-            success: function(token) {
-                me.onSuccess(token, config.success, config.scope || me);
-            },
-            failure: function(error) {
-                me.onFailure(error, config.failure, config.scope || me);
-            },
-            received: function(notifications) {
-                me.onReceived(notifications, config.received, config.scope || me);
-            },
-            type: config.type
-        };
-    },
-
-    onSuccess: function(token, callback, scope) {
-        if (callback) {
-            callback.call(scope, token);
-        }
-    },
-
-    onFailure: function(error, callback, scope) {
-        if (callback) {
-            callback.call(scope, error);
-        }
-    },
-
-    onReceived: function(notifications, callback, scope) {
-        if (callback) {
-            callback.call(scope, notifications);
-        }
-    }
-});
-
-/**
- * @private
- */
-Ext.define('Ext.device.push.Sencha', {
-    extend: 'Ext.device.push.Abstract',
-
-    register: function() {
-        var config = this.callParent(arguments);
-
-        Ext.apply(config, {
-            command: 'PushNotification#Register',
-            callbacks: {
-                success: config.success,
-                failure: config.failure,
-                received: config.received
-            },
-            type: config.type
-        });
-
-        Ext.device.Communicator.send(config);
-    }
-});
-
-/**
- * Provides a way to send push notifications to a device. Currently only available on iOS.
- *
- * # Example
- *
- *     Ext.device.Push.register({
- *         type: Ext.device.Push.ALERT|Ext.device.Push.BADGE|Ext.device.Push.SOUND,
- *         success: function(token) {
- *             console.log('# Push notification registration successful:');
- *             console.log('    token: ' + token);
- *         },
- *         failure: function(error) {
- *             console.log('# Push notification registration unsuccessful:');
- *             console.log('     error: ' + error);
- *         },
- *         received: function(notifications) {
- *             console.log('# Push notification received:');
- *             console.log('    ' + JSON.stringify(notifications));
- *         }
- *     });
- *
- * @mixins Ext.device.push.Abstract
- *
- * @aside guide native_apis
- */
-Ext.define('Ext.device.Push', {
-    singleton: true,
-
-    requires: [
-        'Ext.device.Communicator',
-        'Ext.device.push.Sencha'
-    ],
-
-    constructor: function() {
-        var browserEnv = Ext.browser.is;
-
-        if (browserEnv.WebView) {
-            if (!browserEnv.PhoneGap) {
-                return Ext.create('Ext.device.push.Sencha');
-            }
-            else {
-                return Ext.create('Ext.device.push.Abstract');
-            }
-        }
-        else {
-            return Ext.create('Ext.device.push.Abstract');
-        }
     }
 });
 
@@ -73504,7 +71269,7 @@ Ext.define('Ext.util.PaintMonitor', {
     ],
 
     constructor: function(config) {
-        if (Ext.browser.engineVersion.gtEq('536')) {
+        if (Ext.browser.engineVersion.gtEq('536') && !Ext.os.is.BlackBerry) {
             return new Ext.util.paintmonitor.OverflowChange(config);
         }
         else {
@@ -73718,6 +71483,10 @@ Ext.define('Ext.util.sizemonitor.Abstract', {
         Ext.TaskQueue.requestRead('refresh', this);
     },
 
+    getContentBounds: function() {
+        return this.detectorsContainer.getBoundingClientRect();
+    },
+
     refreshSize: function() {
         var element = this.getElement();
 
@@ -73725,11 +71494,12 @@ Ext.define('Ext.util.sizemonitor.Abstract', {
             return false;
         }
 
-        var width = element.getWidth(),
-            height = element.getHeight(),
-            contentElement = this.detectorsContainer,
-            contentWidth = contentElement.offsetWidth,
-            contentHeight = contentElement.offsetHeight,
+        var elementBounds = element.dom.getBoundingClientRect(),
+            width = elementBounds.width,
+            height = elementBounds.height,
+            contentBounds = this.getContentBounds(),
+            contentWidth = contentBounds.width,
+            contentHeight = contentBounds.height,
             currentContentWidth = this.contentWidth,
             currentContentHeight = this.contentHeight,
             info = this.info,
@@ -73903,16 +71673,20 @@ Ext.define('Ext.util.sizemonitor.OverflowChange', {
     refreshMonitors: function() {
         var expandHelper = this.expandHelper,
             shrinkHelper = this.shrinkHelper,
-            width = this.contentWidth,
-            height = this.contentHeight;
+            contentBounds = this.getContentBounds(),
+            width = contentBounds.width,
+            height = contentBounds.height,
+            style;
 
-        if (expandHelper && !expandHelper.isDestroyed) {
-            expandHelper.style.width = (width + 1) + 'px';
-            expandHelper.style.height = (height + 1) + 'px';
+            if (expandHelper && !expandHelper.isDestroyed) {
+                style = expandHelper.style;
+                style.width = (width + 1) + 'px';
+                style.height = (height + 1) + 'px';
         }
         if (shrinkHelper && !shrinkHelper.isDestroyed) {
-            shrinkHelper.style.width = width + 'px';
-            shrinkHelper.style.height = height + 'px';
+            style = shrinkHelper.style;
+            style.width = width  + 'px';
+            style.height = height + 'px';
         }
 
         Ext.TaskQueue.requestRead('refresh', this);
@@ -75573,10 +73347,10 @@ Ext.define('Ext.event.recognizer.VerticalSwipe', {
             direction = (deltaY < 0) ? 'up' : 'down';
 
             this.fire('swipe', e, [touch], {
-                touch: touch,
-                distance: distance,
-                duration: duration,
-                duration: duration
+                touch     : touch,
+                distance  : distance,
+                duration  : duration,
+                direction : direction
             });
         }
     }
@@ -75886,7 +73660,7 @@ Ext.define('Ext.field.Checkbox', {
         ln = elements.length;
         for (i = 0; i < ln; i++) {
             element = elements[i];
-            element = Ext.fly(element).up('.x-field-' + element.getAttribute('type'));
+            element = Ext.fly(element).up('.x-field');
             if (element && element.id) {
                 components.push(Ext.getCmp(element.id));
             }
@@ -76042,6 +73816,12 @@ Ext.define('Ext.picker.Slot', {
         valueField: 'value',
 
         /**
+         * @cfg {String} itemTpl The template to be used in this slot.
+         * If you set this, {@link #displayField} will be ignored.
+         */
+        itemTpl: null,
+
+        /**
          * @cfg {Object} scrollable
          * @accessor
          * @hide
@@ -76117,7 +73897,9 @@ Ext.define('Ext.picker.Slot', {
     },
 
     updateDisplayField: function(newDisplayField) {
-        this.setItemTpl('<div class="' + Ext.baseCSSPrefix + 'picker-item {cls} <tpl if="extra">' + Ext.baseCSSPrefix + 'picker-invalid</tpl>">{' + newDisplayField + '}</div>');
+        if (!this.config.itemTpl) {
+            this.setItemTpl('<div class="' + Ext.baseCSSPrefix + 'picker-item {cls} <tpl if="extra">' + Ext.baseCSSPrefix + 'picker-invalid</tpl>">{' + newDisplayField + '}</div>');
+        }
     },
 
     /**
@@ -76159,13 +73941,6 @@ Ext.define('Ext.picker.Slot', {
         }
 
         return data;
-    },
-
-    updateData: function(data) {
-        this.setStore(Ext.create('Ext.data.Store', {
-            fields: ['text', 'value'],
-            data : data
-        }));
     },
 
     // @private
@@ -76312,6 +74087,18 @@ Ext.define('Ext.picker.Slot', {
      * @private
      */
     setValue: function(value) {
+        return this.doSetValue(value);
+    },
+
+    /**
+     * Sets the value of this slot
+     * @private
+     */
+    setValueAnimated: function(value) {
+        return this.doSetValue(value, true);
+    },
+
+    doSetValue: function(value, animated) {
         if (!Ext.isDefined(value)) {
             return;
         }
@@ -76333,38 +74120,9 @@ Ext.define('Ext.picker.Slot', {
 
             this.selectedIndex = index;
             if (item) {
-                this.scrollToItem(item);
-            }
-
-            this._value = value;
-        }
-    },
-
-    /**
-     * Sets the value of this slot
-     * @private
-     */
-    setValueAnimated: function(value) {
-        if (!this.rendered) {
-            //we don't want to call this until the slot has been rendered
-            this._value = value;
-            return;
-        }
-
-        var store = this.getStore(),
-            viewItems = this.getViewItems(),
-            valueField = this.getValueField(),
-            index, item;
-
-        index = store.find(valueField, value);
-        if (index != -1) {
-            item = Ext.get(viewItems[index]);
-            this.selectedIndex = index;
-
-            if (item) {
-                this.scrollToItem(item, {
+                this.scrollToItem(item, (animated) ? {
                     duration: 100
-                });
+                } : false);
             }
 
             this._value = value;
@@ -76625,9 +74383,7 @@ Ext.define('Ext.picker.Picker', {
         toolbar: true
     },
 
-    initElement: function() {
-        this.callParent(arguments);
-
+    initialize: function() {
         var me = this,
             clsPrefix = Ext.baseCSSPrefix,
             innerElement = this.innerElement;
@@ -76645,11 +74401,6 @@ Ext.define('Ext.picker.Picker', {
             scope   : this,
             delegate: 'pickerslot',
             slotpick: 'onSlotPick'
-        });
-
-        me.on({
-            scope: this,
-            show: 'onShow'
         });
     },
 
@@ -76851,7 +74602,13 @@ Ext.define('Ext.picker.Picker', {
         this.fireEvent('pick', this, this.getValue(true), slot);
     },
 
-    onShow: function() {
+    show: function() {
+        if (this.getParent() === undefined) {
+            Ext.Viewport.add(this);
+        }
+        
+        this.callParent(arguments);
+
         if (!this.isHidden()) {
             this.setValue(this._value);
         }
@@ -77089,6 +74846,7 @@ Ext.define('Ext.picker.Date', {
         }
 
         this.callParent([value, animated]);
+        this.onSlotPick();
     },
 
     getValue: function(useDom) {
@@ -77319,11 +75077,11 @@ Ext.define('Ext.picker.Date', {
         }
 
         // We don't need to update the slot days unless it has changed
-        if (slot.getData().length == days.length) {
+        if (slot.getStore().getCount() == days.length) {
             return;
         }
 
-        slot.setData(days);
+        slot.getStore().setData(days);
 
         // Now we have the correct amount of days for the day slot, lets update it
         var store = slot.getStore(),
@@ -77676,7 +75434,7 @@ Ext.define('Ext.field.DatePicker', {
             change: 'onPickerChange',
             hide  : 'onPickerHide'
         });
-        Ext.Viewport.add(picker);
+        
         this._picker = picker;
 
         return picker;
@@ -77834,6 +75592,41 @@ Ext.define('Ext.field.Email', {
 
 
 
+
+/**
+ * @private
+ */
+Ext.define('Ext.field.File', {
+    extend: 'Ext.field.Input',
+    xtype : 'file',
+
+    cachedConfig: {
+        type: 'file'
+    },
+
+    // @private
+    getTemplate: function() {
+        var items = [
+            {
+                reference: 'input',
+                tag: this.tag,
+                type: 'file'
+            }
+        ];
+
+        items.push({
+            reference: 'mask',
+            classList: [this.config.maskCls]
+        });
+
+        return items;
+    },
+
+    updateType: function(newType, oldType) {
+        var prefix = Ext.baseCSSPrefix + 'input-';
+        this.input.replaceCls(prefix + oldType, prefix + newType);
+    }
+});
 
 /**
  * @aside guide forms
@@ -78022,6 +75815,16 @@ Ext.define('Ext.field.Number', {
          * @accessor
          */
         stepValue: null
+    },
+
+    doInitValue : function() {
+        var value = this.getInitialConfig().value;
+
+        if (value) {
+            value = this.applyValue(value);
+        }
+
+        this.originalValue = value;
     },
 
     applyValue: function(value) {
@@ -78480,7 +76283,7 @@ Ext.define('Ext.field.Select', {
          * `false` if you want it to use a popup overlay {@link Ext.List}.
          * `auto` if you want to show a {@link Ext.picker.Picker} only on phones.
          */
-        usePicker: 'auto',
+        usePicker: (Ext.os.is.BlackBerry && Ext.os.version.getMajor() === 10) ? false : 'auto',
 
         /**
          * @cfg {Boolean} autoSelect
@@ -78642,7 +76445,7 @@ Ext.define('Ext.field.Select', {
                 layout: 'fit',
                 hideOnMaskTap: true,
                 width: Ext.os.is.Phone ? '14em' : '18em',
-                height: Ext.os.is.Phone ? '12.5em' : '22em',
+                height: (Ext.os.is.BlackBerry && Ext.os.version.getMajor() === 10) ? '12em' : (Ext.os.is.Phone ? '12.5em' : '22em'),
                 items: {
                     xtype: 'list',
                     store: this.getStore(),
@@ -78711,7 +76514,7 @@ Ext.define('Ext.field.Select', {
                 Ext.Viewport.add(listPanel);
             }
 
-            listPanel.showBy(this.getComponent());
+            listPanel.showBy(this.getComponent(), (Ext.os.is.BlackBerry && Ext.os.version.getMajor() === 10) ? 't-b' : null);
             list.select(record, null, true);
         }
     },
@@ -79131,6 +76934,11 @@ Ext.define('Ext.slider.Slider', {
             drag: 'onThumbDrag',
             dragend: 'onThumbDragEnd'
         });
+        
+        var thumb = this.getThumb(0);
+        if(thumb) {
+            thumb.on('resize', 'onThumbResize', this);
+        }
     },
 
     /**
@@ -79168,11 +76976,15 @@ Ext.define('Ext.slider.Slider', {
         this.offsetValueRatio = trackWidth / valueRange;
     },
 
-    onResize: function(element, info) {
+    onThumbResize: function(){
         var thumb = this.getThumb(0);
         if (thumb) {
             this.thumbWidth = thumb.getElementWidth();
         }
+        this.refresh();
+    },
+
+    onResize: function(element, info) {
         this.elementWidth = info.width;
         this.refresh();
     },
@@ -82504,8 +80316,8 @@ Ext.define('Ext.fx.animation.Wipe', {
 
     config: {
         /**
-         * @cfg
-         * @inheritdoc
+         * Valid values are 'ease', 'linear', ease-in', 'ease-out', 'ease-in-out',
+         * or a cubic-bezier curve as defined by CSS.
          */
         easing: 'ease-out',
 
@@ -83700,6 +81512,8 @@ Ext.define('Ext.navigation.Bar', {
             properties, leftGhost, titleGhost, leftProps, titleProps;
 
         if (animated) {
+            me.isAnimating = true;
+
             leftGhost = me.createProxy(leftBox.element);
             leftBoxElement.setStyle('opacity', '0');
             backButton.setText(backButtonText);
@@ -83709,18 +81523,15 @@ Ext.define('Ext.navigation.Bar', {
             titleElement.setStyle('opacity', '0');
             me.setTitle(titleText);
 
-            me.refreshTitlePosition();
-
             properties = me.measureView(leftGhost, titleGhost, reverse);
             leftProps = properties.left;
             titleProps = properties.title;
-
-            me.isAnimating = true;
 
             me.animate(leftBoxElement, leftProps.element);
             me.animate(titleElement, titleProps.element, function() {
                 titleElement.setLeft(properties.titleLeft);
                 me.isAnimating = false;
+                me.refreshTitlePosition();
             });
 
             if (Ext.os.is.Android2 && !this.getAndroid2Transforms()) {
@@ -85882,8 +83693,8 @@ Ext.define('Ext.util.Droppable', {
 
     config: {
         /**
-         * @cfg
-         * @inheritdoc
+         * The base CSS class to apply to this component's element.
+         * This will also be prepended to other elements within this component.
          */
         baseCls: Ext.baseCSSPrefix + 'droppable'
     },
@@ -86669,111 +84480,6 @@ Ext.define('Ext.util.translatable.CssPosition', {
         domStyle.top = null;
 
         this.callParent(arguments);
-    }
-});
-
-Ext.define('Ext.ux.Faker', {
-    config: {
-        names: ['Ed Spencer', 'Tommy Maintz', 'Rob Dougan', 'Jamie Avins', 'Jacky Nguyen'],
-        emails: ['ed@sencha.com', 'tommy@sencha.com', 'rob@sencha.com', 'jamie@sencha.com', 'jacky@sencha.com'],
-        lorem: [
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus eget neque nec sem semper cursus. Fusce ",
-            "molestie nibh nec ligula gravida et porta enim luctus. Curabitur id accumsan dolor. Vestibulum ultricies ",
-            "vehicula erat vel elementum. Mauris urna odio, dignissim sit amet molestie sit amet, sodales vel metus. Ut eu ",
-            "volutpat nulla. Morbi ut est sed eros egestas gravida quis eget eros. Proin sit amet massa nunc. Proin congue ",
-            "mollis mollis. Morbi sollicitudin nisl at diam placerat eu dignissim magna rutrum.\n",
-
-            "Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Phasellus eu ",
-            "vestibulum lectus. Fusce a eros metus. Vivamus vel aliquet neque. Ut eu purus ipsum. Nullam id leo hendrerit ",
-            "augue imperdiet malesuada ac eget velit. Quisque congue turpis eget ante mollis ut sollicitudin massa dapibus. ",
-            "Sed magna dolor, dictum sit amet aliquam eu, ultricies sit amet diam. Fusce tempor porta tellus vitae ",
-            "pulvinar. Aenean velit ligula, fermentum non imperdiet et, suscipit sed libero. Aliquam ac ligula ut dui ", 
-            "pharetra dictum vel vel nunc. Phasellus semper, ligula id tristique ullamcorper, tortor diam mollis erat, sed ",
-            "feugiat nisl nisi sit amet sem. Maecenas nec mi vitae ligula malesuada pellentesque.\n",
-
-            "Quisque diam velit, suscipit sit amet ornare eu, congue sed quam. Integer rhoncus luctus mi, sed pulvinar ",
-            "lectus lobortis non. Sed egestas orci nec elit sagittis eu condimentum massa volutpat. Fusce blandit congue ",
-            "enim venenatis lacinia. Donec enim sapien, sollicitudin at placerat non, vehicula ut nisi. Aliquam volutpat ",
-            "metus sit amet lacus condimentum fermentum. Aliquam congue scelerisque leo ut tristique."
-        ].join(""),
-        
-        subjects: [
-            "Order more widgets",
-            "You're crazy",
-            "Jacky is not his real name",
-            "Why am I here?",
-            "This is totally broken",
-            "When do we ship?",
-            "Top Secret",
-            "There's always money in the banana stand"
-        ]
-    },
-    
-    oneOf: function(set) {
-        return set[Math.floor(Math.random() * set.length)];
-    },
-    
-    name: function() {
-        return this.oneOf(this.getNames());
-    },
-    
-    email: function() {
-        return this.oneOf(this.getSubjects());
-    },
-    
-    subject: function() {
-        return this.oneOf(this.getSubjects());
-    },
-    
-    lorem: function(paragraphs) {
-        var lorem = this.getLorem();
-        
-        if (paragraphs) {
-            return lorem.split("\n").slice(0, paragraphs).join("\n");
-        } else {
-            return lorem;
-        }
-    }
-});
-
-Ext.define('Ext.ux.auth.Session', {
-    
-    constructor: function(credentials) {
-        credentials = {
-            username: 'ed',
-            password: 'secret'
-        }
-    },
-    
-    validate: function(options) {
-        options = {
-            success: function(session) {
-                
-            },
-            failure: function(session) {
-                
-            },
-            callback: function(session) {
-                
-            },
-            scope: me
-        }
-    },
-    
-    destroy: function() {
-        
-    }
-});
-
-Ext.define('Ext.ux.auth.model.Session', {
-    fields: ['username', 'created_at', 'expires_at'],
-    
-    validate: function() {
-        
-    },
-    
-    destroy: function() {
-        
     }
 });
 
@@ -87617,7 +85323,11 @@ Ext.define('Ext.viewport.Android', {
 
     if (version.gtEq('4')) {
         this.override({
-            doBlurInput: Ext.emptyFn
+            doBlurInput: Ext.emptyFn,
+            onResize: function() {
+                this.callParent();
+                this.doFixSize();
+            }
         });
     }
 });

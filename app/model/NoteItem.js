@@ -29,13 +29,13 @@ Ext.define('Notes.model.NoteItem', {
         		field: 'id'
         	},
             {
-            	type: 'presence', 
-            	field: 'created' 
+            	type: 'presence',
+            	field: 'created'
             },
-            { 
-            	type: 'presence', 
-            	field: 'title', 
-            	message: 'Please enter a title for this note.' 
+            {
+            	type: 'presence',
+            	field: 'title',
+            	message: 'Please enter a title for this note.'
             }
         ]
     }

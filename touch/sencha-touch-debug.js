@@ -1,7 +1,7 @@
 /*
 This file is part of Sencha Touch 2.1
 
-Copyright (c) 2011-2012 Sencha Inc
+Copyright (c) 2011-2013 Sencha Inc
 
 Contact:  http://www.sencha.com/contact
 
@@ -13,7 +13,7 @@ terms contained in a written agreement between you and Sencha.
 If you are unsure which license is appropriate for your use, please contact the sales department
 at http://www.sencha.com/contact.
 
-Build date: 2012-11-05 22:31:29 (08c91901ae8449841ff23e5d3fb404d6128d3b0b)
+Build date: 2013-02-05 12:25:50 (3ba7c63bea96e5ea776e2bbd67cfb0aa01e43322)
 */
 //@tag foundation,core
 //@define Ext
@@ -361,6 +361,19 @@ Build date: 2012-11-05 22:31:29 (08c91901ae8449841ff23e5d3fb404d6128d3b0b)
          */
         isDate: function(value) {
             return toString.call(value) === '[object Date]';
+        },
+
+        /**
+         * Returns 'true' if the passed value is a String that matches the MS Date JSON encoding format
+         * @param value {String} The string to test
+         * @return {Boolean}
+         */
+        isMSDate: function(value) {
+            if (!Ext.isString(value)) {
+                return false;
+            } else {
+                return value.match("\\\\?/Date\\(([-+])?(\\d+)(?:[+-]\\d{4})?\\)\\\\?/") !== null;
+            }
         },
 
         /**
@@ -1932,40 +1945,37 @@ Ext.urlAppend = Ext.String.urlAppend;
         intersect: function() {
             var intersect = [],
                 arrays = slice.call(arguments),
-                i, j, k, minArray, array, x, y, ln, arraysLn, arrayLn;
+                item, minArray, itemIndex, arrayIndex;
 
             if (!arrays.length) {
                 return intersect;
             }
 
-            // Find the smallest array
-            for (i = x = 0,ln = arrays.length; i < ln,array = arrays[i]; i++) {
-                if (!minArray || array.length < minArray.length) {
-                    minArray = array;
-                    x = i;
+            //Find the Smallest Array
+            arrays = arrays.sort(function(a, b) {
+                if (a.length > b.length) {
+                    return 1;
+                } else if (a.length < b.length) {
+                    return -1;
+                } else {
+                    return 0;
                 }
-            }
+            });
 
-            minArray = ExtArray.unique(minArray);
-            erase(arrays, x, 1);
+            //Remove duplicates from smallest array
+            minArray = ExtArray.unique(arrays[0]);
 
-            // Use the smallest unique'd array as the anchor loop. If the other array(s) do contain
-            // an item in the small array, we're likely to find it before reaching the end
-            // of the inner loop and can terminate the search early.
-            for (i = 0,ln = minArray.length; i < ln,x = minArray[i]; i++) {
-                var count = 0;
-
-                for (j = 0,arraysLn = arrays.length; j < arraysLn,array = arrays[j]; j++) {
-                    for (k = 0,arrayLn = array.length; k < arrayLn,y = array[k]; k++) {
-                        if (x === y) {
-                            count++;
-                            break;
-                        }
+            //Populate intersecting values
+            for (itemIndex = 0; itemIndex < minArray.length; itemIndex++) {
+                item = minArray[itemIndex];
+                for (arrayIndex = 1; arrayIndex < arrays.length; arrayIndex++) {
+                    if (arrays[arrayIndex].indexOf(item) === -1) {
+                        break;
                     }
-                }
 
-                if (count === arraysLn) {
-                    intersect.push(x);
+                    if (arrayIndex == (arrays.length - 1)) {
+                        intersect.push(item);
+                    }
                 }
             }
 
@@ -3542,7 +3552,11 @@ Ext.JSON = new(function() {
         } else if (Ext.isDate(o)) {
             return Ext.JSON.encodeDate(o);
         } else if (Ext.isString(o)) {
-            return encodeString(o);
+            if (Ext.isMSDate(o)) {
+               return encodeMSDate(o);
+            } else {
+                return encodeString(o);
+            }
         } else if (typeof o == "number") {
             //don't use isNumber here, since finite checks happen inside isNumber
             return isFinite(o) ? String(o) : "null";
@@ -3596,6 +3610,9 @@ Ext.JSON = new(function() {
         // Overwrite trailing comma (or empty string)
         a[a.length - 1] = '}';
         return a.join("");
+    },
+    encodeMSDate = function(o) {
+        return '"' + o + '"';
     };
 
     /**
@@ -8717,7 +8734,7 @@ var noArgs = [],
  *
  * [getting_started]: #!/guide/getting_started
  */
-Ext.setVersion('touch', '2.1.0');
+Ext.setVersion('touch', '2.1.1');
 
 Ext.apply(Ext, {
     /**
@@ -10409,7 +10426,7 @@ Ext.define('Ext.env.OS', {
             ios: 'i(?:Pad|Phone|Pod)(?:.*)CPU(?: iPhone)? OS ',
             android: '(Android |HTC_|Silk/)', // Some HTC devices ship with an OSX userAgent by default,
                                         // so we need to add a direct check for HTC_
-            blackberry: 'BlackBerry(?:.*)Version\/',
+            blackberry: '(?:BlackBerry|BB)(?:.*)Version\/',
             rimTablet: 'RIM Tablet OS ',
             webos: '(?:webOS|hpwOS)\/',
             bada: 'Bada\/'
@@ -10619,7 +10636,7 @@ Ext.define('Ext.env.OS', {
             // always set it to false when you are on a desktop
             Ext.browser.is.WebView = false;
         }
-        else if (osEnv.is.iPad || osEnv.is.Android3 || (osEnv.is.Android4 && userAgent.search(/mobile/i) == -1)) {
+        else if (osEnv.is.iPad || osEnv.is.RIMTablet || osEnv.is.Android3 || (osEnv.is.Android4 && userAgent.search(/mobile/i) == -1)) {
             deviceType = 'Tablet';
         }
         else {
@@ -14351,233 +14368,371 @@ Ext.define('Ext.dom.CompositeElementLite', {
 });
 
 Ext.ClassManager.addNameAlternateMappings({
-  "Ext.app.Profile": [],
+  "Ext.data.identifier.Uuid": [],
   "Ext.event.recognizer.MultiTouch": [],
+  "Ext.app.Profile": [],
   "Ext.fx.Runner": [],
-  "Ext.chart.grid.CircularGrid": [],
+  "Ext.data.proxy.Client": [
+    "Ext.proxy.ClientProxy"
+  ],
+  "Ext.fx.easing.Bounce": [],
+  "Ext.data.Types": [],
+  "Ext.util.Translatable": [],
+  "Ext.app.Action": [],
   "Ext.mixin.Templatable": [],
   "Ext.event.recognizer.Pinch": [],
+  "Ext.device.camera.PhoneGap": [],
   "Ext.util.Format": [],
+  "Ext.LoadMask": [],
+  "Ext.data.association.Association": [
+    "Ext.data.Association"
+  ],
   "Ext.direct.JsonProvider": [],
   "Ext.data.identifier.Simple": [],
+  "Ext.behavior.Draggable": [],
   "Ext.dataview.DataView": [
     "Ext.DataView"
   ],
   "Ext.field.Hidden": [
     "Ext.form.Hidden"
   ],
-  "Ext.env.Feature": [],
+  "Ext.util.TranslatableGroup": [],
   "Ext.field.Number": [
     "Ext.form.Number"
   ],
-  "Ext.chart.series.CandleStick": [],
   "Ext.device.Connection": [],
+  "Ext.fx.Animation": [],
+  "Ext.util.Inflector": [],
   "Ext.data.Model": [
     "Ext.data.Record"
   ],
+  "Ext.Map": [],
   "Ext.data.reader.Reader": [
     "Ext.data.Reader",
     "Ext.data.DataReader"
   ],
   "Ext.Sheet": [],
+  "Ext.XTemplate": [],
   "Ext.tab.Tab": [
     "Ext.Tab"
   ],
-  "Ext.chart.series.sprite.StackedCartesian": [],
+  "Ext.data.NodeStore": [],
+  "Ext.form.Panel": [
+    "Ext.form.FormPanel"
+  ],
   "Ext.util.Grouper": [],
   "Ext.util.translatable.CssPosition": [],
   "Ext.util.paintmonitor.Abstract": [],
   "Ext.direct.RemotingProvider": [],
+  "Ext.data.Request": [],
   "Ext.data.NodeInterface": [
     "Ext.data.Node"
   ],
-  "Ext.env.OS": [],
-  "Ext.chart.interactions.PanZoom": [],
+  "Ext.layout.Float": [],
   "Ext.util.PositionMap": [],
-  "Ext.chart.series.ItemPublisher": [],
+  "Ext.dataview.component.DataItem": [],
+  "Ext.data.proxy.WebStorage": [
+    "Ext.data.WebStorageProxy"
+  ],
+  "Ext.log.writer.Writer": [],
+  "Ext.device.Communicator": [],
+  "Ext.util.Point": [],
+  "Ext.fx.animation.Flip": [],
   "Ext.util.Sortable": [],
-  "Ext.chart.series.sprite.AbstractRadial": [],
   "Ext.fx.runner.Css": [],
   "Ext.fx.runner.CssTransition": [],
-  "Ext.draw.Group": [],
+  "Ext.fx.layout.card.Slide": [],
+  "Ext.Anim": [],
   "Ext.XTemplateCompiler": [],
   "Ext.util.Wrapper": [],
-  "Ext.app.Router": [],
+  "Ext.data.DirectStore": [],
   "Ext.direct.Transaction": [
     "Ext.Direct.Transaction"
   ],
+  "Ext.app.Router": [],
   "Ext.util.Offset": [],
-  "Ext.dom.Element": [
-    "Ext.Element"
-  ],
   "Ext.device.device.Abstract": [],
+  "Ext.dataview.NestedList": [
+    "Ext.NestedList"
+  ],
   "Ext.mixin.Mixin": [],
+  "Ext.device.connection.Simulator": [],
   "Ext.fx.animation.FadeOut": [],
+  "Ext.app.Route": [],
+  "Ext.event.publisher.ComponentSize": [],
   "Ext.util.Geolocation": [
     "Ext.util.GeoLocation"
   ],
+  "Ext.util.sizemonitor.OverflowChange": [],
   "Ext.ComponentManager": [
     "Ext.ComponentMgr"
   ],
-  "Ext.util.sizemonitor.OverflowChange": [],
+  "Ext.slider.Toggle": [],
   "Ext.event.publisher.ElementSize": [],
+  "Ext.data.identifier.Sequential": [],
   "Ext.tab.Bar": [
     "Ext.TabBar"
   ],
   "Ext.event.Dom": [],
   "Ext.app.Application": [],
+  "Ext.AbstractComponent": [],
+  "Ext.Template": [],
+  "Ext.device.Push": [],
+  "Ext.fx.easing.BoundMomentum": [],
   "Ext.dataview.List": [
     "Ext.List"
   ],
-  "Ext.util.translatable.Dom": [],
   "Ext.fx.layout.card.Scroll": [],
-  "Ext.draw.LimitedCache": [],
+  "Ext.util.translatable.Dom": [],
+  "Ext.viewport.Viewport": [],
+  "Ext.event.recognizer.VerticalSwipe": [],
   "Ext.device.geolocation.Sencha": [],
+  "Ext.event.Event": [
+    "Ext.EventObject"
+  ],
+  "Ext.behavior.Behavior": [],
   "Ext.dataview.ListItemHeader": [],
   "Ext.event.publisher.TouchGesture": [],
   "Ext.data.SortTypes": [],
+  "Ext.fx.easing.EaseOut": [],
+  "Ext.event.recognizer.LongPress": [],
+  "Ext.Toolbar": [],
+  "Ext.device.notification.Sencha": [],
   "Ext.device.contacts.Abstract": [],
   "Ext.device.push.Sencha": [],
   "Ext.fx.animation.WipeOut": [],
+  "Ext.data.ArrayStore": [],
   "Ext.slider.Slider": [],
   "Ext.Component": [
     "Ext.lib.Component"
   ],
   "Ext.device.communicator.Default": [],
   "Ext.fx.runner.CssAnimation": [],
-  "Ext.chart.axis.Axis": [],
+  "Ext.event.recognizer.Rotate": [],
+  "Ext.event.publisher.ComponentPaint": [],
+  "Ext.fx.layout.card.Flip": [],
+  "Ext.mixin.Sortable": [],
+  "Ext.util.TranslatableList": [],
+  "Ext.carousel.Item": [],
   "Ext.fx.animation.Cube": [],
-  "Ext.chart.Markers": [],
-  "Ext.chart.series.sprite.Radar": [],
+  "Ext.event.recognizer.Swipe": [],
+  "Ext.util.translatable.ScrollPosition": [],
   "Ext.device.device.Simulator": [],
+  "Ext.device.camera.Simulator": [],
   "Ext.Ajax": [],
   "Ext.dataview.component.ListItem": [],
   "Ext.util.Filter": [],
   "Ext.layout.wrapper.Inner": [],
-  "Ext.draw.Animator": [],
+  "Ext.event.recognizer.Touch": [],
+  "Ext.plugin.ListPaging": [],
+  "Ext.mixin.Observable": [
+    "Ext.util.Observable"
+  ],
+  "Ext.carousel.Infinite": [],
   "Ext.device.geolocation.Simulator": [],
   "Ext.data.association.BelongsTo": [
     "Ext.data.BelongsToAssociation"
   ],
-  "Ext.draw.Surface": [],
-  "Ext.dom.Query": [],
+  "Ext.Mask": [],
+  "Ext.event.publisher.Publisher": [],
   "Ext.scroll.indicator.ScrollPosition": [],
+  "Ext.layout.wrapper.Dock": [],
+  "Ext.app.History": [],
+  "Ext.data.proxy.Direct": [
+    "Ext.data.DirectProxy"
+  ],
   "Ext.field.Email": [
     "Ext.form.Email"
   ],
   "Ext.fx.layout.card.Abstract": [],
   "Ext.event.Controller": [],
   "Ext.dataview.component.Container": [],
+  "Ext.data.proxy.Sql": [
+    "Ext.data.proxy.SQL"
+  ],
+  "Ext.table.Cell": [],
   "Ext.log.writer.Remote": [],
-  "Ext.fx.layout.card.Style": [],
+  "Ext.fx.layout.card.ScrollCover": [],
+  "Ext.device.orientation.Sencha": [],
   "Ext.device.purchases.Sencha": [],
-  "Ext.chart.axis.segmenter.Segmenter": [],
+  "Ext.fx.layout.card.Style": [],
   "Ext.viewport.Android": [],
+  "Ext.util.Droppable": [],
   "Ext.log.formatter.Identity": [],
-  "Ext.chart.interactions.ItemHighlight": [],
   "Ext.picker.Picker": [
     "Ext.Picker"
   ],
+  "Ext.device.Purchases.Product": [],
   "Ext.data.Batch": [],
-  "Ext.draw.modifier.Animation": [],
-  "Ext.chart.AbstractChart": [],
+  "Ext.device.Orientation": [],
+  "Ext.direct.Provider": [],
+  "Ext.util.Draggable": [],
+  "Ext.device.contacts.Sencha": [],
+  "Ext.field.File": [],
   "Ext.tab.Panel": [
     "Ext.TabPanel"
   ],
-  "Ext.draw.Path": [],
   "Ext.scroll.indicator.Throttled": [],
-  "Ext.fx.animation.SlideOut": [],
+  "Ext.mixin.Traversable": [],
+  "Ext.util.AbstractMixedCollection": [],
   "Ext.device.connection.Sencha": [],
+  "Ext.fx.animation.SlideOut": [],
+  "Ext.data.JsonStore": [],
   "Ext.fx.layout.card.Pop": [],
-  "Ext.chart.axis.layout.Discrete": [],
+  "Ext.direct.RemotingEvent": [],
+  "Ext.plugin.PullRefresh": [],
+  "Ext.log.writer.Console": [],
+  "Ext.field.Spinner": [
+    "Ext.form.Spinner"
+  ],
+  "Ext.data.proxy.LocalStorage": [
+    "Ext.data.LocalStorageProxy"
+  ],
+  "Ext.fx.animation.Wipe": [
+    "Ext.fx.animation.WipeIn"
+  ],
   "Ext.data.Field": [],
-  "Ext.chart.series.Gauge": [],
+  "Ext.fx.layout.Card": [],
+  "Ext.Label": [],
+  "Ext.TaskQueue": [],
   "Ext.data.StoreManager": [
     "Ext.StoreMgr",
     "Ext.data.StoreMgr",
     "Ext.StoreManager"
   ],
   "Ext.fx.animation.PopOut": [],
-  "Ext.chart.label.Callout": [],
+  "Ext.util.translatable.CssTransform": [],
+  "Ext.viewport.Ios": [],
   "Ext.device.push.Abstract": [],
   "Ext.util.DelayedTask": [],
+  "Ext.Spacer": [],
   "Ext.fx.easing.Momentum": [],
+  "Ext.mixin.Selectable": [],
   "Ext.fx.easing.Abstract": [],
-  "Ext.Title": [],
   "Ext.event.recognizer.Drag": [],
+  "Ext.Title": [],
   "Ext.field.TextArea": [
     "Ext.form.TextArea"
   ],
+  "Ext.data.proxy.Rest": [
+    "Ext.data.RestProxy"
+  ],
   "Ext.fx.Easing": [],
-  "Ext.chart.series.sprite.Scatter": [],
+  "Ext.Img": [],
   "Ext.picker.Date": [
     "Ext.DatePicker"
   ],
   "Ext.data.reader.Array": [
     "Ext.data.ArrayReader"
   ],
+  "Ext.log.writer.DocumentTitle": [],
   "Ext.data.proxy.JsonP": [
     "Ext.data.ScriptTagProxy"
   ],
+  "Ext.data.Error": [],
+  "Ext.util.Sorter": [],
   "Ext.device.communicator.Android": [],
-  "Ext.chart.series.Area": [],
+  "Ext.layout.Abstract": [],
+  "Ext.device.notification.Abstract": [],
+  "Ext.log.filter.Filter": [],
   "Ext.device.device.PhoneGap": [],
+  "Ext.device.camera.Sencha": [],
   "Ext.field.Checkbox": [
     "Ext.form.Checkbox"
   ],
-  "Ext.chart.Legend": [],
   "Ext.Media": [],
   "Ext.TitleBar": [],
-  "Ext.chart.interactions.RotatePie3D": [],
-  "Ext.draw.gradient.Linear": [],
+  "Ext.field.Slider": [
+    "Ext.form.Slider"
+  ],
+  "Ext.field.Search": [
+    "Ext.form.Search"
+  ],
+  "Ext.device.Device": [],
   "Ext.util.TapRepeater": [],
   "Ext.event.Touch": [],
+  "Ext.event.Dispatcher": [],
+  "Ext.data.Store": [],
+  "Ext.behavior.Translatable": [],
+  "Ext.direct.Manager": [
+    "Ext.Direct"
+  ],
   "Ext.mixin.Bindable": [],
+  "Ext.data.proxy.Proxy": [
+    "Ext.data.DataProxy",
+    "Ext.data.Proxy"
+  ],
   "Ext.data.proxy.Server": [
     "Ext.data.ServerProxy"
   ],
-  "Ext.chart.series.Cartesian": [],
   "Ext.util.sizemonitor.Scroll": [],
+  "Ext.navigation.View": [
+    "Ext.NavigationView"
+  ],
   "Ext.data.ResultSet": [],
   "Ext.data.association.HasMany": [
     "Ext.data.HasManyAssociation"
   ],
-  "Ext.draw.TimingFunctions": [],
-  "Ext.draw.engine.Canvas": [],
+  "Ext.device.Notification": [],
+  "Ext.layout.VBox": [],
   "Ext.data.proxy.Ajax": [
     "Ext.data.HttpProxy",
     "Ext.data.AjaxProxy"
   ],
+  "Ext.slider.Thumb": [],
+  "Ext.MessageBox": [],
   "Ext.layout.Default": [],
   "Ext.fx.animation.Fade": [
     "Ext.fx.animation.FadeIn"
   ],
   "Ext.util.paintmonitor.CssAnimation": [],
+  "Ext.event.recognizer.Recognizer": [],
   "Ext.data.writer.Writer": [
     "Ext.data.DataWriter",
     "Ext.data.Writer"
   ],
-  "Ext.event.recognizer.Recognizer": [],
   "Ext.form.FieldSet": [],
   "Ext.scroll.Indicator": [
     "Ext.util.Indicator"
   ],
-  "Ext.XTemplateParser": [],
   "Ext.behavior.Scrollable": [],
-  "Ext.chart.series.sprite.CandleStick": [],
+  "Ext.XTemplateParser": [],
+  "Ext.dataview.IndexBar": [
+    "Ext.IndexBar"
+  ],
+  "Ext.dataview.element.List": [],
+  "Ext.layout.FlexBox": [],
   "Ext.data.JsonP": [
     "Ext.util.JSONP"
   ],
   "Ext.device.connection.PhoneGap": [],
   "Ext.event.publisher.Dom": [],
+  "Ext.field.Url": [
+    "Ext.form.Url"
+  ],
+  "Ext.data.proxy.Memory": [
+    "Ext.data.MemoryProxy"
+  ],
+  "Ext.layout.Card": [],
   "Ext.fx.layout.card.Fade": [],
+  "Ext.ComponentQuery": [],
   "Ext.app.Controller": [],
   "Ext.fx.State": [],
+  "Ext.device.camera.Abstract": [],
   "Ext.layout.wrapper.BoxDock": [],
-  "Ext.chart.series.sprite.Pie3DPart": [],
+  "Ext.device.device.Sencha": [],
   "Ext.viewport.Default": [],
   "Ext.layout.HBox": [],
-  "Ext.ux.auth.model.Session": [],
+  "Ext.scroll.View": [
+    "Ext.util.ScrollView"
+  ],
+  "Ext.util.Region": [],
+  "Ext.field.Select": [
+    "Ext.form.Select"
+  ],
+  "Ext.ItemCollection": [],
+  "Ext.log.formatter.Default": [],
+  "Ext.navigation.Bar": [],
   "Ext.scroll.indicator.Default": [],
   "Ext.data.ModelManager": [
     "Ext.ModelMgr",
@@ -14589,482 +14744,288 @@ Ext.ClassManager.addNameAlternateMappings({
   "Ext.util.translatable.Abstract": [],
   "Ext.scroll.indicator.Abstract": [],
   "Ext.Button": [],
+  "Ext.device.Geolocation": [],
   "Ext.field.Radio": [
     "Ext.form.Radio"
   ],
+  "Ext.data.proxy.SessionStorage": [
+    "Ext.data.SessionStorageProxy"
+  ],
   "Ext.util.HashMap": [],
   "Ext.field.Input": [],
+  "Ext.fx.easing.EaseIn": [],
+  "Ext.field.Password": [
+    "Ext.form.Password"
+  ],
+  "Ext.direct.RemotingMethod": [],
+  "Ext.direct.Event": [],
+  "Ext.device.connection.Abstract": [],
   "Ext.device.Camera": [],
   "Ext.mixin.Filterable": [],
-  "Ext.draw.TextMeasurer": [],
+  "Ext.Evented": [
+    "Ext.EventedBase"
+  ],
   "Ext.dataview.element.Container": [],
-  "Ext.chart.series.sprite.PieSlice": [],
+  "Ext.carousel.Indicator": [
+    "Ext.Carousel.Indicator"
+  ],
+  "Ext.util.Collection": [],
   "Ext.data.Connection": [],
+  "Ext.carousel.Carousel": [
+    "Ext.Carousel"
+  ],
+  "Ext.device.Contacts": [],
+  "Ext.Audio": [],
   "Ext.direct.ExceptionEvent": [],
   "Ext.Panel": [
     "Ext.lib.Panel"
   ],
+  "Ext.device.geolocation.Abstract": [],
   "Ext.data.association.HasOne": [
     "Ext.data.HasOneAssociation"
   ],
-  "Ext.device.geolocation.Abstract": [],
+  "Ext.table.Table": [],
   "Ext.ActionSheet": [],
   "Ext.layout.Box": [],
   "Ext.bb.CrossCut": [],
+  "Ext.data.Errors": [],
   "Ext.Video": [],
-  "Ext.ux.auth.Session": [],
-  "Ext.chart.series.Line": [],
+  "Ext.field.Text": [
+    "Ext.form.Text"
+  ],
   "Ext.fx.layout.card.Cube": [],
   "Ext.event.recognizer.HorizontalSwipe": [],
   "Ext.data.writer.Json": [
     "Ext.data.JsonWriter"
   ],
   "Ext.layout.Fit": [],
+  "Ext.field.TextAreaInput": [],
   "Ext.fx.animation.Slide": [
     "Ext.fx.animation.SlideIn"
   ],
+  "Ext.field.DatePicker": [
+    "Ext.form.DatePicker"
+  ],
   "Ext.device.Purchases.Purchase": [],
+  "Ext.event.recognizer.Tap": [],
   "Ext.table.Row": [],
   "Ext.log.formatter.Formatter": [],
+  "Ext.device.orientation.Abstract": [],
   "Ext.Container": [
     "Ext.lib.Container"
   ],
   "Ext.fx.animation.Pop": [
     "Ext.fx.animation.PopIn"
   ],
-  "Ext.draw.sprite.Circle": [],
+  "Ext.AbstractManager": [],
   "Ext.fx.layout.card.Reveal": [],
   "Ext.fx.layout.card.Cover": [],
   "Ext.log.Base": [],
-  "Ext.data.reader.Xml": [
-    "Ext.data.XmlReader"
-  ],
-  "Ext.event.publisher.ElementPaint": [],
-  "Ext.chart.axis.Category": [],
-  "Ext.data.reader.Json": [
-    "Ext.data.JsonReader"
-  ],
-  "Ext.Decorator": [],
-  "Ext.data.TreeStore": [],
-  "Ext.device.Purchases": [],
-  "Ext.device.orientation.HTML5": [],
-  "Ext.draw.gradient.Gradient": [],
-  "Ext.event.recognizer.DoubleTap": [],
-  "Ext.log.Logger": [],
-  "Ext.picker.Slot": [
-    "Ext.Picker.Slot"
-  ],
-  "Ext.device.notification.Simulator": [],
-  "Ext.field.Field": [
-    "Ext.form.Field"
-  ],
-  "Ext.log.filter.Priority": [],
-  "Ext.util.sizemonitor.Abstract": [],
-  "Ext.chart.series.sprite.Polar": [],
-  "Ext.util.paintmonitor.OverflowChange": [],
-  "Ext.util.LineSegment": [],
-  "Ext.SegmentedButton": [],
-  "Ext.Sortable": [],
-  "Ext.fx.easing.Linear": [],
-  "Ext.chart.series.sprite.Aggregative": [],
-  "Ext.dom.CompositeElement": [
-    "Ext.CompositeElement"
-  ],
-  "Ext.data.identifier.Uuid": [],
-  "Ext.data.proxy.Client": [
-    "Ext.proxy.ClientProxy"
-  ],
-  "Ext.fx.easing.Bounce": [],
-  "Ext.data.Types": [],
-  "Ext.chart.series.sprite.Cartesian": [],
-  "Ext.app.Action": [],
-  "Ext.util.Translatable": [],
-  "Ext.device.camera.PhoneGap": [],
-  "Ext.draw.sprite.Path": [],
-  "Ext.LoadMask": [],
-  "Ext.data.association.Association": [
-    "Ext.data.Association"
-  ],
-  "Ext.chart.axis.sprite.Axis": [],
-  "Ext.behavior.Draggable": [],
-  "Ext.chart.grid.RadialGrid": [],
-  "Ext.util.TranslatableGroup": [],
-  "Ext.fx.Animation": [],
-  "Ext.draw.sprite.Ellipse": [],
-  "Ext.util.Inflector": [],
-  "Ext.Map": [],
-  "Ext.XTemplate": [],
-  "Ext.data.NodeStore": [],
-  "Ext.draw.sprite.AttributeParser": [],
-  "Ext.form.Panel": [
-    "Ext.form.FormPanel"
-  ],
-  "Ext.chart.series.Series": [],
-  "Ext.data.Request": [],
-  "Ext.draw.sprite.Text": [],
-  "Ext.layout.Float": [],
-  "Ext.dom.CompositeElementLite": [
-    "Ext.CompositeElementLite",
-    "Ext.CompositeElement"
-  ],
-  "Ext.dataview.component.DataItem": [],
-  "Ext.chart.CartesianChart": [
-    "Ext.chart.Chart"
-  ],
-  "Ext.data.proxy.WebStorage": [
-    "Ext.data.WebStorageProxy"
-  ],
-  "Ext.log.writer.Writer": [],
-  "Ext.device.Communicator": [],
-  "Ext.fx.animation.Flip": [],
-  "Ext.util.Point": [],
-  "Ext.chart.series.StackedCartesian": [],
-  "Ext.fx.layout.card.Slide": [],
-  "Ext.Anim": [],
-  "Ext.data.DirectStore": [],
-  "Ext.dataview.NestedList": [
-    "Ext.NestedList"
-  ],
-  "Ext.app.Route": [],
-  "Ext.device.connection.Simulator": [],
-  "Ext.chart.PolarChart": [],
-  "Ext.event.publisher.ComponentSize": [],
-  "Ext.slider.Toggle": [],
-  "Ext.data.identifier.Sequential": [],
-  "Ext.AbstractComponent": [],
-  "Ext.Template": [],
-  "Ext.device.Push": [],
-  "Ext.fx.easing.BoundMomentum": [],
-  "Ext.viewport.Viewport": [],
-  "Ext.event.recognizer.VerticalSwipe": [],
-  "Ext.chart.series.Polar": [],
-  "Ext.event.Event": [
-    "Ext.EventObject"
-  ],
-  "Ext.behavior.Behavior": [],
-  "Ext.chart.grid.VerticalGrid": [],
-  "Ext.chart.label.Label": [],
-  "Ext.draw.sprite.EllipticalArc": [],
-  "Ext.fx.easing.EaseOut": [],
-  "Ext.Toolbar": [],
-  "Ext.event.recognizer.LongPress": [],
-  "Ext.device.notification.Sencha": [],
-  "Ext.chart.series.sprite.Line": [],
-  "Ext.data.ArrayStore": [],
-  "Ext.data.proxy.SQL": [],
-  "Ext.event.recognizer.Rotate": [],
-  "Ext.mixin.Sortable": [],
-  "Ext.fx.layout.card.Flip": [],
-  "Ext.chart.interactions.CrossZoom": [],
-  "Ext.event.publisher.ComponentPaint": [],
-  "Ext.util.TranslatableList": [],
-  "Ext.carousel.Item": [],
-  "Ext.event.recognizer.Swipe": [],
-  "Ext.mixin.Identifiable": [],
-  "Ext.util.translatable.ScrollPosition": [],
-  "Ext.device.camera.Simulator": [],
-  "Ext.chart.series.sprite.Area": [],
-  "Ext.event.recognizer.Touch": [],
-  "Ext.plugin.ListPaging": [],
-  "Ext.draw.sprite.Sector": [],
-  "Ext.chart.axis.segmenter.Names": [],
-  "Ext.mixin.Observable": [
-    "Ext.util.Observable"
-  ],
-  "Ext.carousel.Infinite": [],
-  "Ext.draw.Matrix": [],
-  "Ext.Mask": [],
-  "Ext.event.publisher.Publisher": [],
-  "Ext.layout.wrapper.Dock": [],
-  "Ext.app.History": [],
-  "Ext.data.proxy.Direct": [
-    "Ext.data.DirectProxy"
-  ],
-  "Ext.chart.axis.layout.Continuous": [],
-  "Ext.table.Cell": [],
-  "Ext.fx.layout.card.ScrollCover": [],
-  "Ext.device.orientation.Sencha": [],
-  "Ext.util.Droppable": [],
-  "Ext.draw.sprite.Composite": [],
-  "Ext.chart.series.Pie": [],
-  "Ext.device.Purchases.Product": [],
-  "Ext.device.Orientation": [],
-  "Ext.direct.Provider": [],
-  "Ext.draw.sprite.Arc": [],
-  "Ext.chart.axis.segmenter.Time": [],
-  "Ext.util.Draggable": [],
-  "Ext.device.contacts.Sencha": [],
-  "Ext.dom.Helper": [],
-  "Ext.chart.grid.HorizontalGrid": [],
-  "Ext.mixin.Traversable": [],
-  "Ext.util.AbstractMixedCollection": [],
-  "Ext.data.JsonStore": [],
-  "Ext.draw.SegmentTree": [],
-  "Ext.direct.RemotingEvent": [],
-  "Ext.plugin.PullRefresh": [],
-  "Ext.log.writer.Console": [],
-  "Ext.field.Spinner": [
-    "Ext.form.Spinner"
-  ],
-  "Ext.chart.axis.segmenter.Numeric": [],
-  "Ext.data.proxy.LocalStorage": [
-    "Ext.data.LocalStorageProxy"
-  ],
-  "Ext.fx.animation.Wipe": [
-    "Ext.fx.animation.WipeIn"
-  ],
-  "Ext.fx.layout.Card": [],
-  "Ext.TaskQueue": [],
-  "Ext.Label": [],
-  "Ext.util.translatable.CssTransform": [],
-  "Ext.viewport.Ios": [],
-  "Ext.Spacer": [],
-  "Ext.mixin.Selectable": [],
-  "Ext.draw.sprite.Image": [],
-  "Ext.data.proxy.Rest": [
-    "Ext.data.RestProxy"
-  ],
-  "Ext.Img": [],
-  "Ext.chart.series.sprite.Bar": [],
-  "Ext.log.writer.DocumentTitle": [],
-  "Ext.data.Error": [],
-  "Ext.util.Sorter": [],
-  "Ext.draw.gradient.Radial": [],
-  "Ext.layout.Abstract": [],
-  "Ext.device.notification.Abstract": [],
-  "Ext.log.filter.Filter": [],
-  "Ext.device.camera.Sencha": [],
-  "Ext.draw.sprite.Sprite": [],
-  "Ext.draw.Color": [],
-  "Ext.chart.series.Bar": [],
-  "Ext.field.Slider": [
-    "Ext.form.Slider"
-  ],
-  "Ext.field.Search": [
-    "Ext.form.Search"
-  ],
-  "Ext.chart.series.Scatter": [],
-  "Ext.device.Device": [],
-  "Ext.event.Dispatcher": [],
-  "Ext.data.Store": [],
-  "Ext.draw.modifier.Highlight": [],
-  "Ext.behavior.Translatable": [],
-  "Ext.direct.Manager": [
-    "Ext.Direct"
-  ],
-  "Ext.env.Browser": [],
-  "Ext.data.proxy.Proxy": [
-    "Ext.data.DataProxy",
-    "Ext.data.Proxy"
-  ],
-  "Ext.draw.modifier.Modifier": [],
-  "Ext.navigation.View": [
-    "Ext.NavigationView"
-  ],
-  "Ext.draw.modifier.Target": [],
-  "Ext.draw.sprite.AttributeDefinition": [],
-  "Ext.device.Notification": [],
-  "Ext.draw.Component": [],
-  "Ext.layout.VBox": [],
-  "Ext.slider.Thumb": [],
-  "Ext.MessageBox": [],
-  "Ext.ux.Faker": [],
-  "Ext.dataview.IndexBar": [
-    "Ext.IndexBar"
-  ],
-  "Ext.dataview.element.List": [],
-  "Ext.layout.FlexBox": [],
-  "Ext.field.Url": [
-    "Ext.form.Url"
-  ],
-  "Ext.draw.Solver": [],
-  "Ext.data.proxy.Memory": [
-    "Ext.data.MemoryProxy"
-  ],
-  "Ext.chart.axis.Time": [],
-  "Ext.layout.Card": [],
-  "Ext.ComponentQuery": [],
-  "Ext.chart.series.Pie3D": [],
-  "Ext.device.camera.Abstract": [],
-  "Ext.device.device.Sencha": [],
-  "Ext.scroll.View": [
-    "Ext.util.ScrollView"
-  ],
-  "Ext.draw.sprite.Rect": [],
-  "Ext.util.Region": [],
-  "Ext.field.Select": [
-    "Ext.form.Select"
-  ],
-  "Ext.draw.Draw": [],
-  "Ext.ItemCollection": [],
-  "Ext.log.formatter.Default": [],
-  "Ext.navigation.Bar": [],
-  "Ext.chart.axis.layout.CombineDuplicate": [],
-  "Ext.device.Geolocation": [],
-  "Ext.chart.SpaceFillingChart": [],
-  "Ext.data.proxy.SessionStorage": [
-    "Ext.data.SessionStorageProxy"
-  ],
-  "Ext.fx.easing.EaseIn": [],
-  "Ext.draw.sprite.AnimationParser": [],
-  "Ext.field.Password": [
-    "Ext.form.Password"
-  ],
-  "Ext.device.connection.Abstract": [],
-  "Ext.direct.Event": [],
-  "Ext.direct.RemotingMethod": [],
-  "Ext.Evented": [
-    "Ext.EventedBase"
-  ],
-  "Ext.carousel.Indicator": [
-    "Ext.Carousel.Indicator"
-  ],
-  "Ext.util.Collection": [],
-  "Ext.chart.interactions.ItemInfo": [],
-  "Ext.chart.MarkerHolder": [],
-  "Ext.carousel.Carousel": [
-    "Ext.Carousel"
-  ],
-  "Ext.Audio": [],
-  "Ext.device.Contacts": [],
-  "Ext.table.Table": [],
-  "Ext.draw.engine.SvgContext.Gradient": [],
-  "Ext.chart.axis.layout.Layout": [],
-  "Ext.data.Errors": [],
-  "Ext.field.Text": [
-    "Ext.form.Text"
-  ],
-  "Ext.field.TextAreaInput": [],
-  "Ext.field.DatePicker": [
-    "Ext.form.DatePicker"
-  ],
-  "Ext.draw.engine.Svg": [],
-  "Ext.event.recognizer.Tap": [],
-  "Ext.device.orientation.Abstract": [],
-  "Ext.AbstractManager": [],
-  "Ext.chart.series.Radar": [],
-  "Ext.chart.interactions.Abstract": [],
   "Ext.scroll.indicator.CssTransform": [],
   "Ext.util.PaintMonitor": [],
   "Ext.direct.PollingProvider": [],
+  "Ext.event.publisher.ElementPaint": [],
+  "Ext.data.reader.Xml": [
+    "Ext.data.XmlReader"
+  ],
   "Ext.device.notification.PhoneGap": [],
   "Ext.data.writer.Xml": [
     "Ext.data.XmlWriter"
   ],
   "Ext.event.recognizer.SingleTouch": [],
-  "Ext.draw.sprite.Instancing": [],
+  "Ext.data.reader.Json": [
+    "Ext.data.JsonReader"
+  ],
+  "Ext.Decorator": [],
+  "Ext.data.TreeStore": [],
   "Ext.event.publisher.ComponentDelegation": [],
-  "Ext.chart.axis.Numeric": [],
+  "Ext.device.Purchases": [],
+  "Ext.device.orientation.HTML5": [],
+  "Ext.event.recognizer.DoubleTap": [],
+  "Ext.log.Logger": [],
   "Ext.field.Toggle": [
     "Ext.form.Toggle"
   ],
+  "Ext.picker.Slot": [
+    "Ext.Picker.Slot"
+  ],
   "Ext.fx.layout.card.ScrollReveal": [],
   "Ext.data.Operation": [],
+  "Ext.device.notification.Simulator": [],
   "Ext.fx.animation.Abstract": [],
-  "Ext.chart.interactions.Rotate": [],
-  "Ext.draw.engine.SvgContext": [],
+  "Ext.field.Field": [
+    "Ext.form.Field"
+  ],
+  "Ext.log.filter.Priority": [],
+  "Ext.util.sizemonitor.Abstract": [],
+  "Ext.util.paintmonitor.OverflowChange": [],
   "Ext.scroll.Scroller": [],
   "Ext.util.SizeMonitor": [],
+  "Ext.util.LineSegment": [],
   "Ext.event.ListenerStack": [],
-  "Ext.util.MixedCollection": []
+  "Ext.SegmentedButton": [],
+  "Ext.util.MixedCollection": [],
+  "Ext.fx.easing.Linear": [],
+  "Ext.Sortable": [],
+  "Ext.dom.CompositeElement": [
+    "Ext.CompositeElement"
+  ]
 });Ext.ClassManager.addNameAliasMappings({
-  "Ext.app.Profile": [],
-  "Ext.event.recognizer.MultiTouch": [],
-  "Ext.fx.Runner": [],
-  "Ext.chart.grid.CircularGrid": [
-    "grid.circular"
+  "Ext.data.identifier.Uuid": [
+    "data.identifier.uuid"
   ],
+  "Ext.event.recognizer.MultiTouch": [],
+  "Ext.app.Profile": [],
+  "Ext.fx.Runner": [],
+  "Ext.data.proxy.Client": [],
+  "Ext.fx.easing.Bounce": [],
+  "Ext.data.Types": [],
+  "Ext.util.Translatable": [],
+  "Ext.app.Action": [],
   "Ext.mixin.Templatable": [],
   "Ext.event.recognizer.Pinch": [],
+  "Ext.device.camera.PhoneGap": [],
   "Ext.util.Format": [],
+  "Ext.LoadMask": [
+    "widget.loadmask"
+  ],
+  "Ext.data.association.Association": [],
   "Ext.direct.JsonProvider": [
     "direct.jsonprovider"
   ],
   "Ext.data.identifier.Simple": [
     "data.identifier.simple"
   ],
+  "Ext.behavior.Draggable": [],
   "Ext.dataview.DataView": [
     "widget.dataview"
   ],
   "Ext.field.Hidden": [
     "widget.hiddenfield"
   ],
-  "Ext.env.Feature": [],
+  "Ext.util.TranslatableGroup": [],
   "Ext.field.Number": [
     "widget.numberfield"
   ],
-  "Ext.chart.series.CandleStick": [
-    "series.candlestick"
-  ],
   "Ext.device.Connection": [],
+  "Ext.fx.Animation": [],
+  "Ext.util.Inflector": [],
   "Ext.data.Model": [],
+  "Ext.Map": [
+    "widget.map"
+  ],
   "Ext.data.reader.Reader": [],
   "Ext.Sheet": [
     "widget.sheet"
   ],
+  "Ext.XTemplate": [],
   "Ext.tab.Tab": [
     "widget.tab"
   ],
-  "Ext.chart.series.sprite.StackedCartesian": [],
+  "Ext.data.NodeStore": [
+    "store.node"
+  ],
+  "Ext.form.Panel": [
+    "widget.formpanel"
+  ],
   "Ext.util.Grouper": [],
   "Ext.util.translatable.CssPosition": [],
   "Ext.util.paintmonitor.Abstract": [],
   "Ext.direct.RemotingProvider": [
     "direct.remotingprovider"
   ],
+  "Ext.data.Request": [],
   "Ext.data.NodeInterface": [],
-  "Ext.env.OS": [],
-  "Ext.chart.interactions.PanZoom": [
-    "interaction.panzoom"
+  "Ext.layout.Float": [
+    "layout.float"
   ],
   "Ext.util.PositionMap": [],
-  "Ext.chart.series.ItemPublisher": [],
+  "Ext.dataview.component.DataItem": [
+    "widget.dataitem"
+  ],
+  "Ext.data.proxy.WebStorage": [],
+  "Ext.log.writer.Writer": [],
+  "Ext.device.Communicator": [],
+  "Ext.util.Point": [],
+  "Ext.fx.animation.Flip": [
+    "animation.flip"
+  ],
   "Ext.util.Sortable": [],
-  "Ext.chart.series.sprite.AbstractRadial": [],
   "Ext.fx.runner.Css": [],
   "Ext.fx.runner.CssTransition": [],
-  "Ext.draw.Group": [],
+  "Ext.fx.layout.card.Slide": [
+    "fx.layout.card.slide"
+  ],
+  "Ext.Anim": [],
   "Ext.XTemplateCompiler": [],
   "Ext.util.Wrapper": [],
-  "Ext.app.Router": [],
+  "Ext.data.DirectStore": [
+    "store.direct"
+  ],
   "Ext.direct.Transaction": [
     "direct.transaction"
   ],
+  "Ext.app.Router": [],
   "Ext.util.Offset": [],
-  "Ext.dom.Element": [
-    "widget.element"
-  ],
   "Ext.device.device.Abstract": [],
+  "Ext.dataview.NestedList": [
+    "widget.nestedlist"
+  ],
   "Ext.mixin.Mixin": [],
+  "Ext.device.connection.Simulator": [],
   "Ext.fx.animation.FadeOut": [
     "animation.fadeOut"
   ],
+  "Ext.app.Route": [],
+  "Ext.event.publisher.ComponentSize": [],
   "Ext.util.Geolocation": [],
-  "Ext.ComponentManager": [],
   "Ext.util.sizemonitor.OverflowChange": [],
+  "Ext.ComponentManager": [],
+  "Ext.slider.Toggle": [],
   "Ext.event.publisher.ElementSize": [],
+  "Ext.data.identifier.Sequential": [
+    "data.identifier.sequential"
+  ],
   "Ext.tab.Bar": [
     "widget.tabbar"
   ],
   "Ext.event.Dom": [],
   "Ext.app.Application": [],
+  "Ext.AbstractComponent": [],
+  "Ext.Template": [],
+  "Ext.device.Push": [],
+  "Ext.fx.easing.BoundMomentum": [],
   "Ext.dataview.List": [
     "widget.list"
   ],
-  "Ext.util.translatable.Dom": [],
   "Ext.fx.layout.card.Scroll": [
     "fx.layout.card.scroll"
   ],
-  "Ext.draw.LimitedCache": [],
+  "Ext.util.translatable.Dom": [],
+  "Ext.viewport.Viewport": [],
+  "Ext.event.recognizer.VerticalSwipe": [],
   "Ext.device.geolocation.Sencha": [],
+  "Ext.event.Event": [],
+  "Ext.behavior.Behavior": [],
   "Ext.dataview.ListItemHeader": [
     "widget.listitemheader"
   ],
   "Ext.event.publisher.TouchGesture": [],
   "Ext.data.SortTypes": [],
+  "Ext.fx.easing.EaseOut": [
+    "easing.ease-out"
+  ],
+  "Ext.event.recognizer.LongPress": [],
+  "Ext.Toolbar": [
+    "widget.toolbar"
+  ],
+  "Ext.device.notification.Sencha": [],
   "Ext.device.contacts.Abstract": [],
   "Ext.device.push.Sencha": [],
   "Ext.fx.animation.WipeOut": [],
+  "Ext.data.ArrayStore": [
+    "store.array"
+  ],
   "Ext.slider.Slider": [
     "widget.slider"
   ],
@@ -15073,96 +15034,149 @@ Ext.ClassManager.addNameAlternateMappings({
   ],
   "Ext.device.communicator.Default": [],
   "Ext.fx.runner.CssAnimation": [],
-  "Ext.chart.axis.Axis": [
-    "widget.axis"
+  "Ext.event.recognizer.Rotate": [],
+  "Ext.event.publisher.ComponentPaint": [],
+  "Ext.fx.layout.card.Flip": [
+    "fx.layout.card.flip"
   ],
+  "Ext.mixin.Sortable": [],
+  "Ext.util.TranslatableList": [],
+  "Ext.carousel.Item": [],
   "Ext.fx.animation.Cube": [
     "animation.cube"
   ],
-  "Ext.chart.Markers": [],
-  "Ext.chart.series.sprite.Radar": [
-    "sprite.radar"
-  ],
+  "Ext.event.recognizer.Swipe": [],
+  "Ext.util.translatable.ScrollPosition": [],
   "Ext.device.device.Simulator": [],
+  "Ext.device.camera.Simulator": [],
   "Ext.Ajax": [],
   "Ext.dataview.component.ListItem": [
     "widget.listitem"
   ],
   "Ext.util.Filter": [],
   "Ext.layout.wrapper.Inner": [],
-  "Ext.draw.Animator": [],
+  "Ext.event.recognizer.Touch": [],
+  "Ext.plugin.ListPaging": [
+    "plugin.listpaging"
+  ],
+  "Ext.mixin.Observable": [],
+  "Ext.carousel.Infinite": [],
   "Ext.device.geolocation.Simulator": [],
   "Ext.data.association.BelongsTo": [
     "association.belongsto"
   ],
-  "Ext.draw.Surface": [
-    "widget.surface"
+  "Ext.Mask": [
+    "widget.mask"
   ],
-  "Ext.dom.Query": [],
+  "Ext.event.publisher.Publisher": [],
   "Ext.scroll.indicator.ScrollPosition": [],
+  "Ext.layout.wrapper.Dock": [],
+  "Ext.app.History": [],
+  "Ext.data.proxy.Direct": [
+    "proxy.direct"
+  ],
   "Ext.field.Email": [
     "widget.emailfield"
   ],
   "Ext.fx.layout.card.Abstract": [],
   "Ext.event.Controller": [],
   "Ext.dataview.component.Container": [],
-  "Ext.log.writer.Remote": [],
-  "Ext.fx.layout.card.Style": [],
-  "Ext.device.purchases.Sencha": [],
-  "Ext.chart.axis.segmenter.Segmenter": [],
-  "Ext.viewport.Android": [],
-  "Ext.log.formatter.Identity": [],
-  "Ext.chart.interactions.ItemHighlight": [
-    "interaction.itemhighlight"
+  "Ext.data.proxy.Sql": [
+    "proxy.sql"
   ],
+  "Ext.table.Cell": [
+    "widget.tablecell"
+  ],
+  "Ext.log.writer.Remote": [],
+  "Ext.fx.layout.card.ScrollCover": [
+    "fx.layout.card.scrollcover"
+  ],
+  "Ext.device.orientation.Sencha": [],
+  "Ext.device.purchases.Sencha": [],
+  "Ext.fx.layout.card.Style": [],
+  "Ext.viewport.Android": [],
+  "Ext.util.Droppable": [],
+  "Ext.log.formatter.Identity": [],
   "Ext.picker.Picker": [
     "widget.picker"
   ],
+  "Ext.device.Purchases.Product": [],
   "Ext.data.Batch": [],
-  "Ext.draw.modifier.Animation": [
-    "modifier.animation"
+  "Ext.device.Orientation": [],
+  "Ext.direct.Provider": [
+    "direct.provider"
   ],
-  "Ext.chart.AbstractChart": [],
+  "Ext.util.Draggable": [],
+  "Ext.device.contacts.Sencha": [],
+  "Ext.field.File": [
+    "widget.file"
+  ],
   "Ext.tab.Panel": [
     "widget.tabpanel"
   ],
-  "Ext.draw.Path": [],
   "Ext.scroll.indicator.Throttled": [],
+  "Ext.mixin.Traversable": [],
+  "Ext.util.AbstractMixedCollection": [],
+  "Ext.device.connection.Sencha": [],
   "Ext.fx.animation.SlideOut": [
     "animation.slideOut"
   ],
-  "Ext.device.connection.Sencha": [],
+  "Ext.data.JsonStore": [
+    "store.json"
+  ],
   "Ext.fx.layout.card.Pop": [
     "fx.layout.card.pop"
   ],
-  "Ext.chart.axis.layout.Discrete": [
-    "axisLayout.discrete"
+  "Ext.direct.RemotingEvent": [
+    "direct.rpc"
   ],
+  "Ext.plugin.PullRefresh": [
+    "plugin.pullrefresh"
+  ],
+  "Ext.log.writer.Console": [],
+  "Ext.field.Spinner": [
+    "widget.spinnerfield"
+  ],
+  "Ext.data.proxy.LocalStorage": [
+    "proxy.localstorage"
+  ],
+  "Ext.fx.animation.Wipe": [],
   "Ext.data.Field": [
     "data.field"
   ],
-  "Ext.chart.series.Gauge": [
-    "series.gauge"
+  "Ext.fx.layout.Card": [],
+  "Ext.Label": [
+    "widget.label"
   ],
+  "Ext.TaskQueue": [],
   "Ext.data.StoreManager": [],
   "Ext.fx.animation.PopOut": [
     "animation.popOut"
   ],
-  "Ext.chart.label.Callout": [],
+  "Ext.util.translatable.CssTransform": [],
+  "Ext.viewport.Ios": [],
   "Ext.device.push.Abstract": [],
   "Ext.util.DelayedTask": [],
+  "Ext.Spacer": [
+    "widget.spacer"
+  ],
   "Ext.fx.easing.Momentum": [],
+  "Ext.mixin.Selectable": [],
   "Ext.fx.easing.Abstract": [],
+  "Ext.event.recognizer.Drag": [],
   "Ext.Title": [
     "widget.title"
   ],
-  "Ext.event.recognizer.Drag": [],
   "Ext.field.TextArea": [
     "widget.textareafield"
   ],
+  "Ext.data.proxy.Rest": [
+    "proxy.rest"
+  ],
   "Ext.fx.Easing": [],
-  "Ext.chart.series.sprite.Scatter": [
-    "sprite.scatterSeries"
+  "Ext.Img": [
+    "widget.img",
+    "widget.image"
   ],
   "Ext.picker.Date": [
     "widget.datepicker"
@@ -15170,20 +15184,21 @@ Ext.ClassManager.addNameAlternateMappings({
   "Ext.data.reader.Array": [
     "reader.array"
   ],
+  "Ext.log.writer.DocumentTitle": [],
   "Ext.data.proxy.JsonP": [
     "proxy.jsonp",
     "proxy.scripttag"
   ],
+  "Ext.data.Error": [],
+  "Ext.util.Sorter": [],
   "Ext.device.communicator.Android": [],
-  "Ext.chart.series.Area": [
-    "series.area"
-  ],
+  "Ext.layout.Abstract": [],
+  "Ext.device.notification.Abstract": [],
+  "Ext.log.filter.Filter": [],
   "Ext.device.device.PhoneGap": [],
+  "Ext.device.camera.Sencha": [],
   "Ext.field.Checkbox": [
     "widget.checkboxfield"
-  ],
-  "Ext.chart.Legend": [
-    "widget.legend"
   ],
   "Ext.Media": [
     "widget.media"
@@ -15191,27 +15206,47 @@ Ext.ClassManager.addNameAlternateMappings({
   "Ext.TitleBar": [
     "widget.titlebar"
   ],
-  "Ext.chart.interactions.RotatePie3D": [
-    "interaction.rotatePie3d"
+  "Ext.field.Slider": [
+    "widget.sliderfield"
   ],
-  "Ext.draw.gradient.Linear": [],
+  "Ext.field.Search": [
+    "widget.searchfield"
+  ],
+  "Ext.device.Device": [],
   "Ext.util.TapRepeater": [],
   "Ext.event.Touch": [],
+  "Ext.event.Dispatcher": [],
+  "Ext.data.Store": [
+    "store.store"
+  ],
+  "Ext.behavior.Translatable": [],
+  "Ext.direct.Manager": [],
   "Ext.mixin.Bindable": [],
+  "Ext.data.proxy.Proxy": [
+    "proxy.proxy"
+  ],
   "Ext.data.proxy.Server": [
     "proxy.server"
   ],
-  "Ext.chart.series.Cartesian": [],
   "Ext.util.sizemonitor.Scroll": [],
+  "Ext.navigation.View": [
+    "widget.navigationview"
+  ],
   "Ext.data.ResultSet": [],
   "Ext.data.association.HasMany": [
     "association.hasmany"
   ],
-  "Ext.draw.TimingFunctions": [],
-  "Ext.draw.engine.Canvas": [],
+  "Ext.device.Notification": [],
+  "Ext.layout.VBox": [
+    "layout.vbox"
+  ],
   "Ext.data.proxy.Ajax": [
     "proxy.ajax"
   ],
+  "Ext.slider.Thumb": [
+    "widget.thumb"
+  ],
+  "Ext.MessageBox": [],
   "Ext.layout.Default": [
     "layout.default",
     "layout.auto"
@@ -15221,38 +15256,56 @@ Ext.ClassManager.addNameAlternateMappings({
     "animation.fadeIn"
   ],
   "Ext.util.paintmonitor.CssAnimation": [],
+  "Ext.event.recognizer.Recognizer": [],
   "Ext.data.writer.Writer": [
     "writer.base"
   ],
-  "Ext.event.recognizer.Recognizer": [],
   "Ext.form.FieldSet": [
     "widget.fieldset"
   ],
   "Ext.scroll.Indicator": [],
-  "Ext.XTemplateParser": [],
   "Ext.behavior.Scrollable": [],
-  "Ext.chart.series.sprite.CandleStick": [
-    "sprite.candlestickSeries"
+  "Ext.XTemplateParser": [],
+  "Ext.dataview.IndexBar": [],
+  "Ext.dataview.element.List": [],
+  "Ext.layout.FlexBox": [
+    "layout.box"
   ],
   "Ext.data.JsonP": [],
   "Ext.device.connection.PhoneGap": [],
   "Ext.event.publisher.Dom": [],
+  "Ext.field.Url": [
+    "widget.urlfield"
+  ],
+  "Ext.data.proxy.Memory": [
+    "proxy.memory"
+  ],
+  "Ext.layout.Card": [
+    "layout.card"
+  ],
   "Ext.fx.layout.card.Fade": [
     "fx.layout.card.fade"
   ],
+  "Ext.ComponentQuery": [],
   "Ext.app.Controller": [],
   "Ext.fx.State": [],
+  "Ext.device.camera.Abstract": [],
   "Ext.layout.wrapper.BoxDock": [],
-  "Ext.chart.series.sprite.Pie3DPart": [
-    "sprite.pie3dPart"
-  ],
+  "Ext.device.device.Sencha": [],
   "Ext.viewport.Default": [
     "widget.viewport"
   ],
   "Ext.layout.HBox": [
     "layout.hbox"
   ],
-  "Ext.ux.auth.model.Session": [],
+  "Ext.scroll.View": [],
+  "Ext.util.Region": [],
+  "Ext.field.Select": [
+    "widget.selectfield"
+  ],
+  "Ext.ItemCollection": [],
+  "Ext.log.formatter.Default": [],
+  "Ext.navigation.Bar": [],
   "Ext.scroll.indicator.Default": [],
   "Ext.data.ModelManager": [],
   "Ext.data.Validations": [],
@@ -15261,31 +15314,57 @@ Ext.ClassManager.addNameAlternateMappings({
   "Ext.Button": [
     "widget.button"
   ],
+  "Ext.device.Geolocation": [],
   "Ext.field.Radio": [
     "widget.radiofield"
+  ],
+  "Ext.data.proxy.SessionStorage": [
+    "proxy.sessionstorage"
   ],
   "Ext.util.HashMap": [],
   "Ext.field.Input": [
     "widget.input"
   ],
+  "Ext.fx.easing.EaseIn": [
+    "easing.ease-in"
+  ],
+  "Ext.field.Password": [
+    "widget.passwordfield"
+  ],
+  "Ext.direct.RemotingMethod": [],
+  "Ext.direct.Event": [
+    "direct.event"
+  ],
+  "Ext.device.connection.Abstract": [],
   "Ext.device.Camera": [],
   "Ext.mixin.Filterable": [],
-  "Ext.draw.TextMeasurer": [],
+  "Ext.Evented": [],
   "Ext.dataview.element.Container": [],
-  "Ext.chart.series.sprite.PieSlice": [
-    "sprite.pieslice"
+  "Ext.carousel.Indicator": [
+    "widget.carouselindicator"
   ],
+  "Ext.util.Collection": [],
   "Ext.data.Connection": [],
+  "Ext.carousel.Carousel": [
+    "widget.carousel"
+  ],
+  "Ext.device.Contacts": [],
+  "Ext.Audio": [
+    "widget.audio"
+  ],
   "Ext.direct.ExceptionEvent": [
     "direct.exception"
   ],
   "Ext.Panel": [
     "widget.panel"
   ],
+  "Ext.device.geolocation.Abstract": [],
   "Ext.data.association.HasOne": [
     "association.hasone"
   ],
-  "Ext.device.geolocation.Abstract": [],
+  "Ext.table.Table": [
+    "widget.table"
+  ],
   "Ext.ActionSheet": [
     "widget.actionsheet"
   ],
@@ -15295,12 +15374,12 @@ Ext.ClassManager.addNameAlternateMappings({
   "Ext.bb.CrossCut": [
     "widget.crosscut"
   ],
+  "Ext.data.Errors": [],
   "Ext.Video": [
     "widget.video"
   ],
-  "Ext.ux.auth.Session": [],
-  "Ext.chart.series.Line": [
-    "series.line"
+  "Ext.field.Text": [
+    "widget.textfield"
   ],
   "Ext.fx.layout.card.Cube": [
     "fx.layout.card.cube"
@@ -15312,15 +15391,23 @@ Ext.ClassManager.addNameAlternateMappings({
   "Ext.layout.Fit": [
     "layout.fit"
   ],
+  "Ext.field.TextAreaInput": [
+    "widget.textareainput"
+  ],
   "Ext.fx.animation.Slide": [
     "animation.slide",
     "animation.slideIn"
   ],
+  "Ext.field.DatePicker": [
+    "widget.datepickerfield"
+  ],
   "Ext.device.Purchases.Purchase": [],
+  "Ext.event.recognizer.Tap": [],
   "Ext.table.Row": [
     "widget.tablerow"
   ],
   "Ext.log.formatter.Formatter": [],
+  "Ext.device.orientation.Abstract": [],
   "Ext.Container": [
     "widget.container"
   ],
@@ -15328,9 +15415,7 @@ Ext.ClassManager.addNameAlternateMappings({
     "animation.pop",
     "animation.popIn"
   ],
-  "Ext.draw.sprite.Circle": [
-    "sprite.circle"
-  ],
+  "Ext.AbstractManager": [],
   "Ext.fx.layout.card.Reveal": [
     "fx.layout.card.reveal"
   ],
@@ -15338,13 +15423,20 @@ Ext.ClassManager.addNameAlternateMappings({
     "fx.layout.card.cover"
   ],
   "Ext.log.Base": [],
+  "Ext.scroll.indicator.CssTransform": [],
+  "Ext.util.PaintMonitor": [],
+  "Ext.direct.PollingProvider": [
+    "direct.pollingprovider"
+  ],
+  "Ext.event.publisher.ElementPaint": [],
   "Ext.data.reader.Xml": [
     "reader.xml"
   ],
-  "Ext.event.publisher.ElementPaint": [],
-  "Ext.chart.axis.Category": [
-    "axis.category"
+  "Ext.device.notification.PhoneGap": [],
+  "Ext.data.writer.Xml": [
+    "writer.xml"
   ],
+  "Ext.event.recognizer.SingleTouch": [],
   "Ext.data.reader.Json": [
     "reader.json"
   ],
@@ -15352,457 +15444,40 @@ Ext.ClassManager.addNameAlternateMappings({
   "Ext.data.TreeStore": [
     "store.tree"
   ],
+  "Ext.event.publisher.ComponentDelegation": [],
   "Ext.device.Purchases": [],
   "Ext.device.orientation.HTML5": [],
-  "Ext.draw.gradient.Gradient": [],
   "Ext.event.recognizer.DoubleTap": [],
   "Ext.log.Logger": [],
-  "Ext.picker.Slot": [
-    "widget.pickerslot"
-  ],
-  "Ext.device.notification.Simulator": [],
-  "Ext.field.Field": [
-    "widget.field"
-  ],
-  "Ext.log.filter.Priority": [],
-  "Ext.util.sizemonitor.Abstract": [],
-  "Ext.chart.series.sprite.Polar": [],
-  "Ext.util.paintmonitor.OverflowChange": [],
-  "Ext.util.LineSegment": [],
-  "Ext.SegmentedButton": [
-    "widget.segmentedbutton"
-  ],
-  "Ext.Sortable": [],
-  "Ext.fx.easing.Linear": [
-    "easing.linear"
-  ],
-  "Ext.chart.series.sprite.Aggregative": [],
-  "Ext.dom.CompositeElement": [],
-  "Ext.data.identifier.Uuid": [
-    "data.identifier.uuid"
-  ],
-  "Ext.data.proxy.Client": [],
-  "Ext.fx.easing.Bounce": [],
-  "Ext.data.Types": [],
-  "Ext.chart.series.sprite.Cartesian": [],
-  "Ext.app.Action": [],
-  "Ext.util.Translatable": [],
-  "Ext.device.camera.PhoneGap": [],
-  "Ext.draw.sprite.Path": [
-    "sprite.path"
-  ],
-  "Ext.LoadMask": [
-    "widget.loadmask"
-  ],
-  "Ext.data.association.Association": [],
-  "Ext.chart.axis.sprite.Axis": [],
-  "Ext.behavior.Draggable": [],
-  "Ext.chart.grid.RadialGrid": [
-    "grid.radial"
-  ],
-  "Ext.util.TranslatableGroup": [],
-  "Ext.fx.Animation": [],
-  "Ext.draw.sprite.Ellipse": [
-    "sprite.ellipse"
-  ],
-  "Ext.util.Inflector": [],
-  "Ext.Map": [
-    "widget.map"
-  ],
-  "Ext.XTemplate": [],
-  "Ext.data.NodeStore": [
-    "store.node"
-  ],
-  "Ext.draw.sprite.AttributeParser": [],
-  "Ext.form.Panel": [
-    "widget.formpanel"
-  ],
-  "Ext.chart.series.Series": [],
-  "Ext.data.Request": [],
-  "Ext.draw.sprite.Text": [
-    "sprite.text"
-  ],
-  "Ext.layout.Float": [
-    "layout.float"
-  ],
-  "Ext.dom.CompositeElementLite": [],
-  "Ext.dataview.component.DataItem": [
-    "widget.dataitem"
-  ],
-  "Ext.chart.CartesianChart": [
-    "widget.chart",
-    "Ext.chart.Chart"
-  ],
-  "Ext.data.proxy.WebStorage": [],
-  "Ext.log.writer.Writer": [],
-  "Ext.device.Communicator": [],
-  "Ext.fx.animation.Flip": [
-    "animation.flip"
-  ],
-  "Ext.util.Point": [],
-  "Ext.chart.series.StackedCartesian": [],
-  "Ext.fx.layout.card.Slide": [
-    "fx.layout.card.slide"
-  ],
-  "Ext.Anim": [],
-  "Ext.data.DirectStore": [
-    "store.direct"
-  ],
-  "Ext.dataview.NestedList": [
-    "widget.nestedlist"
-  ],
-  "Ext.app.Route": [],
-  "Ext.device.connection.Simulator": [],
-  "Ext.chart.PolarChart": [
-    "widget.polar"
-  ],
-  "Ext.event.publisher.ComponentSize": [],
-  "Ext.slider.Toggle": [],
-  "Ext.data.identifier.Sequential": [
-    "data.identifier.sequential"
-  ],
-  "Ext.AbstractComponent": [],
-  "Ext.Template": [],
-  "Ext.device.Push": [],
-  "Ext.fx.easing.BoundMomentum": [],
-  "Ext.viewport.Viewport": [],
-  "Ext.event.recognizer.VerticalSwipe": [],
-  "Ext.chart.series.Polar": [],
-  "Ext.event.Event": [],
-  "Ext.behavior.Behavior": [],
-  "Ext.chart.grid.VerticalGrid": [
-    "grid.vertical"
-  ],
-  "Ext.chart.label.Label": [],
-  "Ext.draw.sprite.EllipticalArc": [
-    "sprite.ellipticalArc"
-  ],
-  "Ext.fx.easing.EaseOut": [
-    "easing.ease-out"
-  ],
-  "Ext.Toolbar": [
-    "widget.toolbar"
-  ],
-  "Ext.event.recognizer.LongPress": [],
-  "Ext.device.notification.Sencha": [],
-  "Ext.chart.series.sprite.Line": [
-    "sprite.lineSeries"
-  ],
-  "Ext.data.ArrayStore": [
-    "store.array"
-  ],
-  "Ext.data.proxy.SQL": [
-    "proxy.sql"
-  ],
-  "Ext.event.recognizer.Rotate": [],
-  "Ext.mixin.Sortable": [],
-  "Ext.fx.layout.card.Flip": [
-    "fx.layout.card.flip"
-  ],
-  "Ext.chart.interactions.CrossZoom": [
-    "interaction.crosszoom"
-  ],
-  "Ext.event.publisher.ComponentPaint": [],
-  "Ext.util.TranslatableList": [],
-  "Ext.carousel.Item": [],
-  "Ext.event.recognizer.Swipe": [],
-  "Ext.mixin.Identifiable": [],
-  "Ext.util.translatable.ScrollPosition": [],
-  "Ext.device.camera.Simulator": [],
-  "Ext.chart.series.sprite.Area": [
-    "sprite.areaSeries"
-  ],
-  "Ext.event.recognizer.Touch": [],
-  "Ext.plugin.ListPaging": [
-    "plugin.listpaging"
-  ],
-  "Ext.draw.sprite.Sector": [
-    "sprite.sector"
-  ],
-  "Ext.chart.axis.segmenter.Names": [
-    "segmenter.names"
-  ],
-  "Ext.mixin.Observable": [],
-  "Ext.carousel.Infinite": [],
-  "Ext.draw.Matrix": [],
-  "Ext.Mask": [
-    "widget.mask"
-  ],
-  "Ext.event.publisher.Publisher": [],
-  "Ext.layout.wrapper.Dock": [],
-  "Ext.app.History": [],
-  "Ext.data.proxy.Direct": [
-    "proxy.direct"
-  ],
-  "Ext.chart.axis.layout.Continuous": [
-    "axisLayout.continuous"
-  ],
-  "Ext.table.Cell": [
-    "widget.tablecell"
-  ],
-  "Ext.fx.layout.card.ScrollCover": [
-    "fx.layout.card.scrollcover"
-  ],
-  "Ext.device.orientation.Sencha": [],
-  "Ext.util.Droppable": [],
-  "Ext.draw.sprite.Composite": [
-    "sprite.composite"
-  ],
-  "Ext.chart.series.Pie": [
-    "series.pie"
-  ],
-  "Ext.device.Purchases.Product": [],
-  "Ext.device.Orientation": [],
-  "Ext.direct.Provider": [
-    "direct.provider"
-  ],
-  "Ext.draw.sprite.Arc": [
-    "sprite.arc"
-  ],
-  "Ext.chart.axis.segmenter.Time": [
-    "segmenter.time"
-  ],
-  "Ext.util.Draggable": [],
-  "Ext.device.contacts.Sencha": [],
-  "Ext.dom.Helper": [],
-  "Ext.chart.grid.HorizontalGrid": [
-    "grid.horizontal"
-  ],
-  "Ext.mixin.Traversable": [],
-  "Ext.util.AbstractMixedCollection": [],
-  "Ext.data.JsonStore": [
-    "store.json"
-  ],
-  "Ext.draw.SegmentTree": [],
-  "Ext.direct.RemotingEvent": [
-    "direct.rpc"
-  ],
-  "Ext.plugin.PullRefresh": [
-    "plugin.pullrefresh"
-  ],
-  "Ext.log.writer.Console": [],
-  "Ext.field.Spinner": [
-    "widget.spinnerfield"
-  ],
-  "Ext.chart.axis.segmenter.Numeric": [
-    "segmenter.numeric"
-  ],
-  "Ext.data.proxy.LocalStorage": [
-    "proxy.localstorage"
-  ],
-  "Ext.fx.animation.Wipe": [],
-  "Ext.fx.layout.Card": [],
-  "Ext.TaskQueue": [],
-  "Ext.Label": [
-    "widget.label"
-  ],
-  "Ext.util.translatable.CssTransform": [],
-  "Ext.viewport.Ios": [],
-  "Ext.Spacer": [
-    "widget.spacer"
-  ],
-  "Ext.mixin.Selectable": [],
-  "Ext.draw.sprite.Image": [
-    "sprite.image"
-  ],
-  "Ext.data.proxy.Rest": [
-    "proxy.rest"
-  ],
-  "Ext.Img": [
-    "widget.img",
-    "widget.image"
-  ],
-  "Ext.chart.series.sprite.Bar": [
-    "sprite.barSeries"
-  ],
-  "Ext.log.writer.DocumentTitle": [],
-  "Ext.data.Error": [],
-  "Ext.util.Sorter": [],
-  "Ext.draw.gradient.Radial": [],
-  "Ext.layout.Abstract": [],
-  "Ext.device.notification.Abstract": [],
-  "Ext.log.filter.Filter": [],
-  "Ext.device.camera.Sencha": [],
-  "Ext.draw.sprite.Sprite": [
-    "sprite.sprite"
-  ],
-  "Ext.draw.Color": [],
-  "Ext.chart.series.Bar": [
-    "series.bar"
-  ],
-  "Ext.field.Slider": [
-    "widget.sliderfield"
-  ],
-  "Ext.field.Search": [
-    "widget.searchfield"
-  ],
-  "Ext.chart.series.Scatter": [
-    "series.scatter"
-  ],
-  "Ext.device.Device": [],
-  "Ext.event.Dispatcher": [],
-  "Ext.data.Store": [
-    "store.store"
-  ],
-  "Ext.draw.modifier.Highlight": [
-    "modifier.highlight"
-  ],
-  "Ext.behavior.Translatable": [],
-  "Ext.direct.Manager": [],
-  "Ext.env.Browser": [],
-  "Ext.data.proxy.Proxy": [
-    "proxy.proxy"
-  ],
-  "Ext.draw.modifier.Modifier": [],
-  "Ext.navigation.View": [
-    "widget.navigationview"
-  ],
-  "Ext.draw.modifier.Target": [
-    "modifier.target"
-  ],
-  "Ext.draw.sprite.AttributeDefinition": [],
-  "Ext.device.Notification": [],
-  "Ext.draw.Component": [
-    "widget.draw"
-  ],
-  "Ext.layout.VBox": [
-    "layout.vbox"
-  ],
-  "Ext.slider.Thumb": [
-    "widget.thumb"
-  ],
-  "Ext.MessageBox": [],
-  "Ext.ux.Faker": [],
-  "Ext.dataview.IndexBar": [],
-  "Ext.dataview.element.List": [],
-  "Ext.layout.FlexBox": [
-    "layout.box"
-  ],
-  "Ext.field.Url": [
-    "widget.urlfield"
-  ],
-  "Ext.draw.Solver": [],
-  "Ext.data.proxy.Memory": [
-    "proxy.memory"
-  ],
-  "Ext.chart.axis.Time": [
-    "axis.time"
-  ],
-  "Ext.layout.Card": [
-    "layout.card"
-  ],
-  "Ext.ComponentQuery": [],
-  "Ext.chart.series.Pie3D": [
-    "series.pie3d"
-  ],
-  "Ext.device.camera.Abstract": [],
-  "Ext.device.device.Sencha": [],
-  "Ext.scroll.View": [],
-  "Ext.draw.sprite.Rect": [
-    "sprite.rect"
-  ],
-  "Ext.util.Region": [],
-  "Ext.field.Select": [
-    "widget.selectfield"
-  ],
-  "Ext.draw.Draw": [],
-  "Ext.ItemCollection": [],
-  "Ext.log.formatter.Default": [],
-  "Ext.navigation.Bar": [],
-  "Ext.chart.axis.layout.CombineDuplicate": [
-    "axisLayout.combineDuplicate"
-  ],
-  "Ext.device.Geolocation": [],
-  "Ext.chart.SpaceFillingChart": [
-    "widget.spacefilling"
-  ],
-  "Ext.data.proxy.SessionStorage": [
-    "proxy.sessionstorage"
-  ],
-  "Ext.fx.easing.EaseIn": [
-    "easing.ease-in"
-  ],
-  "Ext.draw.sprite.AnimationParser": [],
-  "Ext.field.Password": [
-    "widget.passwordfield"
-  ],
-  "Ext.device.connection.Abstract": [],
-  "Ext.direct.Event": [
-    "direct.event"
-  ],
-  "Ext.direct.RemotingMethod": [],
-  "Ext.Evented": [],
-  "Ext.carousel.Indicator": [
-    "widget.carouselindicator"
-  ],
-  "Ext.util.Collection": [],
-  "Ext.chart.interactions.ItemInfo": [
-    "interaction.iteminfo"
-  ],
-  "Ext.chart.MarkerHolder": [],
-  "Ext.carousel.Carousel": [
-    "widget.carousel"
-  ],
-  "Ext.Audio": [
-    "widget.audio"
-  ],
-  "Ext.device.Contacts": [],
-  "Ext.table.Table": [
-    "widget.table"
-  ],
-  "Ext.draw.engine.SvgContext.Gradient": [],
-  "Ext.chart.axis.layout.Layout": [],
-  "Ext.data.Errors": [],
-  "Ext.field.Text": [
-    "widget.textfield"
-  ],
-  "Ext.field.TextAreaInput": [
-    "widget.textareainput"
-  ],
-  "Ext.field.DatePicker": [
-    "widget.datepickerfield"
-  ],
-  "Ext.draw.engine.Svg": [],
-  "Ext.event.recognizer.Tap": [],
-  "Ext.device.orientation.Abstract": [],
-  "Ext.AbstractManager": [],
-  "Ext.chart.series.Radar": [
-    "series.radar"
-  ],
-  "Ext.chart.interactions.Abstract": [
-    "widget.interaction"
-  ],
-  "Ext.scroll.indicator.CssTransform": [],
-  "Ext.util.PaintMonitor": [],
-  "Ext.direct.PollingProvider": [
-    "direct.pollingprovider"
-  ],
-  "Ext.device.notification.PhoneGap": [],
-  "Ext.data.writer.Xml": [
-    "writer.xml"
-  ],
-  "Ext.event.recognizer.SingleTouch": [],
-  "Ext.draw.sprite.Instancing": [
-    "sprite.instancing"
-  ],
-  "Ext.event.publisher.ComponentDelegation": [],
-  "Ext.chart.axis.Numeric": [
-    "axis.numeric"
-  ],
   "Ext.field.Toggle": [
     "widget.togglefield"
+  ],
+  "Ext.picker.Slot": [
+    "widget.pickerslot"
   ],
   "Ext.fx.layout.card.ScrollReveal": [
     "fx.layout.card.scrollreveal"
   ],
   "Ext.data.Operation": [],
+  "Ext.device.notification.Simulator": [],
   "Ext.fx.animation.Abstract": [],
-  "Ext.chart.interactions.Rotate": [
-    "interaction.rotate"
+  "Ext.field.Field": [
+    "widget.field"
   ],
-  "Ext.draw.engine.SvgContext": [],
+  "Ext.log.filter.Priority": [],
+  "Ext.util.sizemonitor.Abstract": [],
+  "Ext.util.paintmonitor.OverflowChange": [],
   "Ext.scroll.Scroller": [],
   "Ext.util.SizeMonitor": [],
+  "Ext.util.LineSegment": [],
   "Ext.event.ListenerStack": [],
-  "Ext.util.MixedCollection": []
+  "Ext.SegmentedButton": [
+    "widget.segmentedbutton"
+  ],
+  "Ext.util.MixedCollection": [],
+  "Ext.fx.easing.Linear": [
+    "easing.linear"
+  ],
+  "Ext.Sortable": [],
+  "Ext.dom.CompositeElement": []
 });

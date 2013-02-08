@@ -15,7 +15,8 @@ Ext.application({
         'Ext.form.FieldSet',
         'Ext.Label',
         'Notes.util.StringUtil',
-        'Ext.field.Search'
+        'Ext.field.Search',
+        'Notes.util.Constants'
     ],
 
     controllers: [
@@ -33,7 +34,8 @@ Ext.application({
     views: [
         'NotesContainer',
         'NotesForm',
-        'NotesList'
+        'NotesList',
+        'CustomTextArea'
     ],
 
     icon: {

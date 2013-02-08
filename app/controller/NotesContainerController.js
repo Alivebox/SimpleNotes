@@ -27,8 +27,8 @@ Ext.define('Notes.controller.NotesContainerController', {
     },
     
     slideLeftTransition: { 
-    	type: 'slide', 
-    	direction: 'left' 
+    	type: 'slide',
+    	direction: 'left'
     },
 
     notesForm: undefined,
@@ -132,7 +132,8 @@ Ext.define('Notes.controller.NotesContainerController', {
     },
 
     updateNotesTitle: function(argList){
-        var tmpListItemsLength = argList.getStore().getData().length;
+        var tmpNotesStore = Ext.getStore('NoteItems');
+        var tmpListItemsLength = tmpNotesStore.getData().length;
         if(tmpListItemsLength <= 0){
             this.getMainTitleToolbar().setTitle('Notes');
             this.getSearchToolbar().setHidden(true);

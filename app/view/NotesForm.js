@@ -146,11 +146,13 @@ Ext.define("Notes.view.NotesForm", {
 
     createTextArea: function(){
         var tmpNoteTextField = {
-            xtype: 'textareafield',
+            xtype: 'customtextarea',
             name: 'text',
             clearIcon: false,
             maxRows: 14,
-            maxLength: 335,
+            maxLength: Notes.util.Constants.MAX_LENGHT_TEXT,
+            width: '100%',
+            placeHolder: 'New Note',
             listeners: {
                 scope: this,
                 keyup: this.onChangeText,

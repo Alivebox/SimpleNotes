@@ -14,8 +14,7 @@ Ext.define('Notes.controller.NotesFormController', {
             newNoteButton: 'notesform button[name=newNoteButton]',
             mainTitleToolbar: 'notescontainer toolbar[name=mainToolbar]',
             searchToolbar: 'notescontainer toolbar[name=searchToolbar]',
-            textNote: 'notesform textareafield[name=text]',
-            textContainer: 'notesform container[name=textContainer]'
+            textNote: 'notesform textareafield[name=text]'
 	    },
 	    control: {
 	    	notesForm: {
@@ -35,11 +34,9 @@ Ext.define('Notes.controller.NotesFormController', {
 	    }
     },
 
-    tmpThis: undefined,
-    
-    slideRightTransition: { 
-    	type: 'slide', 
-    	direction: 'right' 
+    slideRightTransition: {
+    	type: 'slide',
+    	direction: 'right'
     },
     
     onSaveNote: function(){
@@ -48,12 +45,16 @@ Ext.define('Notes.controller.NotesFormController', {
         if(tmpNewValues.text.length <= 0){
             this.activateNotesList();
         }else{
-            var tmpCurrentNote = this.formToModel();
-            this.addNoteToStore(tmpCurrentNote);
+            this.saveData();
             this.setNavigationToolbarVisible(false);
             this.getSaveButton().setHidden(true);
             this.getNewNoteButton().setHidden(false);
         }
+    },
+
+    saveData: function(){
+        var tmpCurrentNote = this.formToModel();
+        this.addNoteToStore(tmpCurrentNote);
     },
     
     /**
@@ -86,29 +87,37 @@ Ext.define('Notes.controller.NotesFormController', {
     },
     
     onRemoveNote: function(){
-        Ext.Msg.confirm(
-            'Warning',
-            'Are you sure to delete?',
-            this.onSelectOptionOnRemove);
-    	tmpThis = this;
+        this.removeNoteFromStore();
     },
 
-    onSelectOptionOnRemove: function(argButton){
-        if(argButton == 'yes'){
-            tmpThis.removeNoteFromStore();
-        }
-    },
-    
     removeNoteFromStore: function(){
     	var tmpNotesStore = Ext.getStore('NoteItems');
     	var tmpNotesForm = this.getNotesForm();
     	var tmpCurrentNote = tmpNotesForm.getRecord();
-    	if( !tmpNotesStore.findRecord("id",tmpCurrentNote.get("id")) ){
-    		return;
+    	if( tmpNotesStore.findRecord("id",tmpCurrentNote.get("id")) ){
+            this.selectedItemAfterRemove(tmpCurrentNote);
+            tmpNotesStore.remove(tmpCurrentNote);
+            tmpNotesStore.sync();
     	}
-    	tmpNotesStore.remove(tmpCurrentNote);
-    	tmpNotesStore.sync();
-    	this.activateNotesList();
+
+        this.setEnablePrevButton();
+        this.setEnableNextButton();
+        this.updateNotesTitle();
+    },
+
+    selectedItemAfterRemove: function(argCurrentNote){
+        var tmpNote = this.getNextNote(argCurrentNote);
+        if(tmpNote == undefined){
+            tmpNote = this.getPrevNote(argCurrentNote);
+        }
+        if(tmpNote != undefined){
+            this.getNotesForm().setRecord(tmpNote);
+            this.changeToolbarTitle(tmpNote.getData().text);
+            this.getSaveButton().setHidden(true);
+            this.getNewNoteButton().setHidden(false);
+        }else{
+            this.activateNotesList();
+        }
     },
     
     onBackToHome: function(){
@@ -116,6 +125,11 @@ Ext.define('Notes.controller.NotesFormController', {
         this.getNewNoteButton().setHidden(true);
     	this.activateNotesList();
         this.setNavigationToolbarVisible(true);
+        var tmpNotesForm = this.getNotesForm();
+        var tmpNewValues = tmpNotesForm.getValues();
+        if(tmpNewValues.text.length > 0){
+            this.saveData();
+        }
     },
     
     activateNotesList: function(){
@@ -151,7 +165,7 @@ Ext.define('Notes.controller.NotesFormController', {
 
         var tmpNotesForm = this.getNotesForm();
         var tmpCurrentNote = tmpNotesForm.getRecord();
-        if(tmpData.items[0].getData().id == tmpCurrentNote.getData().id){
+        if(tmpData.length <= 0 || tmpData.items[0].getData().id == tmpCurrentNote.getData().id){
             this.getPrevButton().setDisabled(true);
         }else{
             this.getPrevButton().setDisabled(false);
@@ -164,7 +178,7 @@ Ext.define('Notes.controller.NotesFormController', {
 
         var tmpNotesForm = this.getNotesForm();
         var tmpCurrentNote = tmpNotesForm.getRecord();
-        if(tmpData.items[tmpData.items.length-1].getData().id == tmpCurrentNote.getData().id){
+        if(tmpData.length <= 0 || tmpData.items[tmpData.items.length-1].getData().id == tmpCurrentNote.getData().id){
             this.getNextButton().setDisabled(true);
         }else{
             this.getNextButton().setDisabled(false);
@@ -255,12 +269,14 @@ Ext.define('Notes.controller.NotesFormController', {
      * Here we active the noteForm with the selected noteItem
      */
     onEditNote: function(argNote){
+        this.getNotesForm().setRecord(argNote);
         this.setEnableNextButton();
         this.setEnablePrevButton();
     },
 
     updateNotesTitle: function(){
         var tmpNotesStore = Ext.getStore('NoteItems');
+        tmpNotesStore.sync();
         if(tmpNotesStore.getData().length <= 0){
             this.getMainTitleToolbar().setTitle('Notes');
             this.getSearchToolbar().setHidden(true);
@@ -276,6 +292,9 @@ Ext.define('Notes.controller.NotesFormController', {
 
     onPaintedTextNote: function(){
         this.adjustTextAreaHeight();
+        this.getTextNote().blur();
+        this.getTextNote().setReadOnly(true);
+        this.getTextNote().setReadOnly(false);
     },
 
     adjustTextAreaHeight: function(){
@@ -284,7 +303,7 @@ Ext.define('Notes.controller.NotesFormController', {
         if(numOfRows > 14){
             this.getTextNote().setMaxLength(tmpLenght );
         }else{
-            this.getTextNote().setMaxLength(335);
+            this.getTextNote().setMaxLength(Notes.util.Constants.MAX_LENGHT_TEXT);
         }
     }
 

@@ -1,9 +1,7 @@
-$base-color: #6c6c84;
+$base-color: #69697a;
 $active-color: #52525f;
 
 $base-gradient: 'linear';
-$tabs-dark: darken($base-color, 20%);
-$tabs-dark-active-color: saturate($active-color, 20%);
 $tabs-bottom-active-gradient: 'recessed';
 $list-header-bg-color: #6cDAFF;
 $list-header-gradient: $base-gradient;
@@ -48,10 +46,6 @@ $font-family: 'HelvelticaNeue';
   display: inline-block;
 }
 
-.x-dock.x-unsized > .x-dock-body > *, .x-dock.x-stretched > .x-dock-body > * {
-  max-height: 46px;
-}
-
 .x-item-selected .list-item-narrative {
   color:#545454 !important;
 }
@@ -59,10 +53,6 @@ $font-family: 'HelvelticaNeue';
 .notescontainer .x-button-icon.add, .x-button .x-button-icon.x-icon-mask.add{
   background-color: transparent !important;
   background-image: url('../images/add_up.png') !important;
-  -webkit-background-size: 100% 100%;
-  -khtml-background-size: 100% 100%;
-  -o-background-size: 100% 100%;
-  background-size: 100% 100%;
 }
 
 .x-list-normal .x-list-header-wrap .x-item-header, .x-list-normal .x-list-header {
@@ -79,26 +69,18 @@ $font-family: 'HelvelticaNeue';
 
 .deletenote{
   background-image: url('../images/delete_up.png');
-  -webkit-background-size: 100% 100%;
-  -khtml-background-size: 100% 100%;
-  -o-background-size: 100% 100%;
-  background-size: 100% 100%;
+  -webkit-background-size: 36px 47px;
+  -khtml-background-size: 36px 47px;
+  -o-background-size: 36px 47px;
+  background-size: 36px 47px;
 }
 
 .nextbutton{
   background-image: url('../images/next_up.png');
-  -webkit-background-size: 100% 100%;
-  -khtml-background-size: 100% 100%;
-  -o-background-size: 100% 100%;
-  background-size: 100% 100%;
 }
 
 .prevbutton{
   background-image: url('../images/preview_up.png');
-  -webkit-background-size: 100% 100%;
-  -khtml-background-size: 100% 100%;
-  -o-background-size: 100% 100%;
-  background-size: 100% 100%;
 }
 
 .notescontainer .x-list{
@@ -114,6 +96,15 @@ $font-family: 'HelvelticaNeue';
 }
 
 .x-list .x-list-item.x-item-selected .x-dock-horizontal {
+  background-color: #BBF1FE !important;
+  background-image: none;
+  border: 1px solid #6cDAFF;
+  border-top-color: #3ACEFF;
+  color: #545454;
+  text-shadow: none;
+}
+
+.x-list .x-list-item.x-item-pressed .x-dock-horizontal {
   background-color: #BBF1FE !important;
   background-image: none;
   border: 1px solid #6cDAFF;
@@ -193,8 +184,9 @@ $font-family: 'HelvelticaNeue';
 
 .x-toolbar-navigationtoolbar.x-docked-bottom {
   background-color: #FFFFFF !important;
-  border: 1px solid #FFFFFF;
-  border-top-color: #FFFFFF;
+  border: 1px solid #FFFFFF !important;
+  border-top-color: #FFFFFF !important;
+  border-bottom-color: #FFFFFF !important;
   color: #FFFFFF;
 }
 
@@ -209,9 +201,12 @@ $font-family: 'HelvelticaNeue';
 }
 
 .x-label.x-label-datecontainer{
-  background-color: #6cDAFF !important;
-  border: 1px solid #3ACEFF;
-  border-top-color: #6cDAFF;
+  background-color: #39cdff !important;
+  border-top-color: #b7edff !important;
+  border-bottom-color: #32b4e0 !important;
+  border-left-color: #6cDAFF !important;
+  border-right-color: #6cDAFF !important;
+  border: 1px solid;
   color: #FFFFFF !important;
   padding-left: 16px;
   font-weight: bold;
@@ -222,6 +217,19 @@ $font-family: 'HelvelticaNeue';
   font-size: 0.8em;
 }
 
-.x-msgbox .x-toolbar .x-button .x-button-label {
-  color: #FFFFFF;
+.x-button {
+  border-top-color: #3f3f49 !important;
+  border-bottom-color: #3f3f49 !important;
+  border-left-color: #3f3f49 !important;
+  border-right-color: #3f3f49 !important;
+  border-radius: 7px !important;
+}
+
+.x-toolbar{
+  border-top-color: #69697b !important;
+  border-bottom-color: #3f3f49 !important;
+}
+
+.x-button .x-button-icon {
+  height: 2.6em;
 }
