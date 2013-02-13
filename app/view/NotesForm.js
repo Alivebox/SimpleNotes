@@ -21,7 +21,6 @@ Ext.define("Notes.view.NotesForm", {
             tmpTextArea,
         	tmpBottomBar
         ]);
-
     },
 
     createDateToolbar: function(){
@@ -39,6 +38,7 @@ Ext.define("Notes.view.NotesForm", {
     createTopToolbar: function(){
     	var tmpBackButton = {
             xtype: "button",
+            name: 'notesBack',
             text: "Notes",
             ui: 'defaultbutton',
             scope: this,
@@ -146,7 +146,7 @@ Ext.define("Notes.view.NotesForm", {
 
     createTextArea: function(){
         var tmpNoteTextField = {
-            xtype: 'customtextarea',
+            xtype: 'textareafield',
             name: 'text',
             clearIcon: false,
             maxRows: 14,

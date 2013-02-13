@@ -292,9 +292,6 @@ Ext.define('Notes.controller.NotesFormController', {
 
     onPaintedTextNote: function(){
         this.adjustTextAreaHeight();
-        this.getTextNote().blur();
-        this.getTextNote().setReadOnly(true);
-        this.getTextNote().setReadOnly(false);
     },
 
     adjustTextAreaHeight: function(){

@@ -123,7 +123,6 @@
 	 * @cfg {String} provisionProfile
 	 * The path to the provision profile (APP_NAME.mobileprovision) which you can create and then download from Apple's provisioning portal
 	 */
-	"sdkPath":"/path/to/android-sdk",
 
 	/**
 	 * @cfg {String} sdkPath
@@ -131,7 +130,6 @@
 	 */
 	"sdkPath":"/path/to/android-sdk",
 
-	/**
 	/**
 	 * @cfg {String} androidAPILevel
 	 * This is android API level, the version of Android SDK to use, you can read more about it here: http://developer.android.com/guide/appendix/api-levels.html.

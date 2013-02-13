@@ -11,7 +11,7 @@
 	 * @cfg {String} applicationId
 	 * This is the name namespace for your application. On IOS, this should match the name of your application in the Apple Provisioning Portal.
 	 */
-	"applicationId":"com.notesapp",
+	"applicationId":"com.alivebox.notes",
 
 	/**
 	 * @cfg {String} versionString
@@ -62,7 +62,7 @@
 	 * This is configuration for your application. `Debug` should always be used unless you are submitting your app to an online
 	 * store - in which case `Release` should be specified.
 	 */
-	"configuration":"Debug",
+	"configuration":"Release",
 
 	/**
 	 * @cfg {String} platform

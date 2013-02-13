@@ -16,7 +16,8 @@ Ext.application({
         'Ext.Label',
         'Notes.util.StringUtil',
         'Ext.field.Search',
-        'Notes.util.Constants'
+        'Notes.util.Constants',
+        'Ext.field.Hidden'
     ],
 
     controllers: [
